@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Evolution"
+  short_description: "Review traces and evolve skills safely"
+  default_prompt: "Use $skill-evolution to review recent session evidence and propose safe skill improvements."
