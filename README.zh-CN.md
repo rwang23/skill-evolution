@@ -21,32 +21,31 @@ GitHub 仓库：https://github.com/rwang23/skill-evolution
 先克隆公开仓库：
 
 ```bash
-git clone https://github.com/rwang23/skill-evolution.git /tmp/skill-evolution
+git clone https://github.com/rwang23/skill-evolution.git
 ```
 
 macOS/Linux：
 
 ```bash
 mkdir -p ~/.codex/skills ~/.claude/skills ~/.hermes/skills
-cp -R /tmp/skill-evolution ~/.codex/skills/
-cp -R /tmp/skill-evolution ~/.claude/skills/
-cp -R /tmp/skill-evolution ~/.hermes/skills/
+cp -R skill-evolution ~/.codex/skills/
+cp -R skill-evolution ~/.claude/skills/
+cp -R skill-evolution ~/.hermes/skills/
 ```
 
 Windows PowerShell：
 
 ```powershell
-$Repo = Join-Path $env:TEMP "skill-evolution"
-git clone https://github.com/rwang23/skill-evolution.git $Repo
+git clone https://github.com/rwang23/skill-evolution.git
 
 # Codex
-Copy-Item -Recurse $Repo "$env:USERPROFILE\.codex\skills\"
+Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.codex\skills\"
 
 # Claude Code，如果你的 Claude Code 配置会读取这个目录
-Copy-Item -Recurse $Repo "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.claude\skills\"
 
 # Hermes
-Copy-Item -Recurse $Repo "$env:USERPROFILE\.hermes\skills\"
+Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.hermes\skills\"
 ```
 
 其他兼容 Agent Skills 的工具，把克隆得到的 `skill-evolution` 文件夹放到对应的 skill 扫描目录即可。如果目标目录已经存在旧版本，先备份或检查本地修改，不要盲目覆盖。
@@ -59,7 +58,7 @@ Copy-Item -Recurse $Repo "$env:USERPROFILE\.hermes\skills\"
 Install the public Agent Skill repository https://github.com/rwang23/skill-evolution into my local agent skills directory.
 
 Requirements:
-- Clone `https://github.com/rwang23/skill-evolution.git` into a temporary directory.
+- Clone `https://github.com/rwang23/skill-evolution.git` into any workspace or downloads directory you normally use.
 - Copy the `skill-evolution` folder into the skills directory for my active agent:
   - Codex: `$CODEX_HOME/skills` or `$HOME/.codex/skills`
   - Claude Code: `$HOME/.claude/skills`

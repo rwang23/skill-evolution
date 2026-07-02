@@ -18,35 +18,34 @@ This skill helps an agent improve skills from real work: full sessions, user fee
 
 ## Install
 
-Clone the public repository first:
+Clone the public repository:
 
 ```bash
-git clone https://github.com/rwang23/skill-evolution.git /tmp/skill-evolution
+git clone https://github.com/rwang23/skill-evolution.git
 ```
 
 macOS/Linux:
 
 ```bash
 mkdir -p ~/.codex/skills ~/.claude/skills ~/.hermes/skills
-cp -R /tmp/skill-evolution ~/.codex/skills/
-cp -R /tmp/skill-evolution ~/.claude/skills/
-cp -R /tmp/skill-evolution ~/.hermes/skills/
+cp -R skill-evolution ~/.codex/skills/
+cp -R skill-evolution ~/.claude/skills/
+cp -R skill-evolution ~/.hermes/skills/
 ```
 
 Windows PowerShell:
 
 ```powershell
-$Repo = Join-Path $env:TEMP "skill-evolution"
-git clone https://github.com/rwang23/skill-evolution.git $Repo
+git clone https://github.com/rwang23/skill-evolution.git
 
 # Codex
-Copy-Item -Recurse $Repo "$env:USERPROFILE\.codex\skills\"
+Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.codex\skills\"
 
 # Claude Code, if configured to read user skills from this location
-Copy-Item -Recurse $Repo "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.claude\skills\"
 
 # Hermes
-Copy-Item -Recurse $Repo "$env:USERPROFILE\.hermes\skills\"
+Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.hermes\skills\"
 ```
 
 For other Agent Skills-compatible tools, place the cloned `skill-evolution` folder wherever that tool scans skills. If a previous copy exists, back it up or inspect local changes before overwriting.
@@ -59,7 +58,7 @@ Copy this prompt to an agent that has shell and Git access:
 Install the public Agent Skill repository https://github.com/rwang23/skill-evolution into my local agent skills directory.
 
 Requirements:
-- Clone `https://github.com/rwang23/skill-evolution.git` into a temporary directory.
+- Clone `https://github.com/rwang23/skill-evolution.git` into any workspace or downloads directory you normally use.
 - Copy the `skill-evolution` folder into the skills directory for my active agent:
   - Codex: `$CODEX_HOME/skills` or `$HOME/.codex/skills`
   - Claude Code: `$HOME/.claude/skills`
