@@ -78,8 +78,6 @@ Requirements:
 Use $skill-evolution to review recent sessions, convert recurring feedback into evals, and propose safe skill or harness improvements.
 ```
 
-当 agent 已经索引该 skill 时，下列表达也应该能触发它：`skill upgrade`、`skill optimization`、`self-improving agent`、`agent harness`、`loop engineering`、`hook-based skill update`、`技能进化`、`技能升级`、`技能优化`、`自我更新`、`自我改进`。
-
 也可以直接运行 transcript 提取脚本：
 
 ```bash

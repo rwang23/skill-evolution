@@ -78,8 +78,6 @@ Ask your agent to use the skill explicitly:
 Use $skill-evolution to review recent sessions, convert recurring feedback into evals, and propose safe skill or harness improvements.
 ```
 
-Natural-language triggers should also work when the agent has indexed this skill: "skill upgrade", "self-improving agent", "skill optimization", "agent harness", "loop engineering", "hook-based skill update", "技能进化", "技能升级", "自我更新", or "自我改进".
-
 Or run the transcript extractor directly:
 
 ```bash
