@@ -1,4 +1,4 @@
 interface:
   display_name: "Skill Evolution"
-  short_description: "Review traces and evolve skills safely"
-  default_prompt: "Use $skill-evolution to review recent session evidence and propose safe skill improvements."
+  short_description: "Evolve skills and harnesses from traces"
+  default_prompt: "Use $skill-evolution to review recent sessions, evals, hooks, and feedback, then propose safe skill or harness improvements."

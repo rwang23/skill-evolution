@@ -1,8 +1,10 @@
 # Skill Evolution
 
-Evidence-driven skill optimization for Codex, Claude Code, Hermes, Antigravity, OpenAI Agent Skills, and compatible agents.
+Evidence-driven skill and harness evolution for Codex, Claude Code, Hermes, Antigravity, OpenAI Agent Skills, and compatible agents.
 
-This skill helps an agent improve skills from real work: full sessions, user feedback, failures, tool outputs, reports, traces, and external research. It is designed around reviewable evolution, not uncontrolled self-modification.
+Repository: https://github.com/rwang23/skill-evolution
+
+This skill helps an agent improve skills from real work: full sessions, user feedback, failures, tool outputs, reports, traces, evals, hook events, and external research. It is designed around reviewable evolution, not uncontrolled self-modification.
 
 ## What It Does
 
@@ -16,41 +18,48 @@ This skill helps an agent improve skills from real work: full sessions, user fee
 
 ## Install
 
-Copy this folder into a skills directory used by your agent.
+Clone the public repository first:
+
+```bash
+git clone https://github.com/rwang23/skill-evolution.git /tmp/skill-evolution
+```
 
 macOS/Linux:
 
 ```bash
 mkdir -p ~/.codex/skills ~/.claude/skills ~/.hermes/skills
-cp -R ./skill-evolution ~/.codex/skills/
-cp -R ./skill-evolution ~/.claude/skills/
-cp -R ./skill-evolution ~/.hermes/skills/
+cp -R /tmp/skill-evolution ~/.codex/skills/
+cp -R /tmp/skill-evolution ~/.claude/skills/
+cp -R /tmp/skill-evolution ~/.hermes/skills/
 ```
 
 Windows PowerShell:
 
 ```powershell
+$Repo = Join-Path $env:TEMP "skill-evolution"
+git clone https://github.com/rwang23/skill-evolution.git $Repo
+
 # Codex
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.codex\skills\"
+Copy-Item -Recurse $Repo "$env:USERPROFILE\.codex\skills\"
 
 # Claude Code, if configured to read user skills from this location
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse $Repo "$env:USERPROFILE\.claude\skills\"
 
 # Hermes
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.hermes\skills\"
+Copy-Item -Recurse $Repo "$env:USERPROFILE\.hermes\skills\"
 ```
 
-For other Agent Skills-compatible tools, place the folder wherever that tool scans skills.
+For other Agent Skills-compatible tools, place the cloned `skill-evolution` folder wherever that tool scans skills. If a previous copy exists, back it up or inspect local changes before overwriting.
 
 ## Ask an Agent to Install It
 
 Copy this prompt to an agent that has shell and Git access:
 
 ```text
-Install the public Agent Skill repository `skill-evolution` into my local agent skills directory.
+Install the public Agent Skill repository https://github.com/rwang23/skill-evolution into my local agent skills directory.
 
 Requirements:
-- Clone or download the repository into a temporary directory.
+- Clone `https://github.com/rwang23/skill-evolution.git` into a temporary directory.
 - Copy the `skill-evolution` folder into the skills directory for my active agent:
   - Codex: `$CODEX_HOME/skills` or `$HOME/.codex/skills`
   - Claude Code: `$HOME/.claude/skills`
@@ -69,6 +78,8 @@ Ask your agent to use the skill explicitly:
 ```text
 Use $skill-evolution to review recent sessions, convert recurring feedback into evals, and propose safe skill or harness improvements.
 ```
+
+Natural-language triggers should also work when the agent has indexed this skill: "skill upgrade", "self-improving agent", "skill optimization", "agent harness", "loop engineering", "hook-based skill update", "技能进化", "技能升级", "自我更新", or "自我改进".
 
 Or run the transcript extractor directly:
 
@@ -96,7 +107,7 @@ Run this after long sessions, from a Claude Code hook, from a Codex wrapper, fro
 node ./scripts/propose-skill-evolution.js \
   --agent codex \
   --cwd "$PWD" \
-  --skill-dir ./skill-evolution
+  --skill-dir .
 ```
 
 The output goes to `~/.agent-skill-evolution/proposals/` unless `--output-dir` is provided.
@@ -136,8 +147,8 @@ node "$SkillDir\scripts\propose-skill-evolution.js" `
 ## Validate
 
 ```bash
-node ./skill-evolution/scripts/validate-skill-package.js ./skill-evolution
-python ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ./skill-evolution
+node ~/.codex/skills/skill-evolution/scripts/validate-skill-package.js ~/.codex/skills/skill-evolution
+python ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ~/.codex/skills/skill-evolution
 ```
 
 ## License

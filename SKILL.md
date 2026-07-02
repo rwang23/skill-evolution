@@ -1,6 +1,6 @@
 ---
 name: skill-evolution
-description: Runnable skill and harness evolution for Codex, Claude Code, Hermes, Antigravity, OpenAI skills, and compatible agents. Use when the user asks to improve, evolve, audit, publish, or create skills from full sessions, traces, evals, human feedback, Reddit/GitHub/community research, failures, corrections, repeated workflow patterns, hook events, or PR-gated self-improvement loops.
+description: Runnable skill and harness evolution for Codex, Claude Code, Hermes, Antigravity, OpenAI skills, and compatible agents. Use when the user asks for skill evolution, skill upgrade, skill update, skill optimization, skill improvement, self-updating skills, self-improving agents, agent harness, loop engineering, hooks, evals, traces, PR-gated improvement, 技能进化, 技能升级, 技能优化, 技能更新, 自我进化, 自我更新, 自我改进, or when improving skills from full sessions, human feedback, community research, failures, corrections, repeated workflow patterns, and hook events.
 ---
 
 # Skill Evolution

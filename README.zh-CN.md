@@ -1,8 +1,10 @@
 # Skill Evolution
 
-这是一个用于 Codex、Claude Code、Hermes、Antigravity、OpenAI Agent Skills 以及兼容 Agent Skills 标准的智能体的 skill 自我优化工具。
+这是一个用于 Codex、Claude Code、Hermes、Antigravity、OpenAI Agent Skills 以及兼容 Agent Skills 标准的智能体的 skill / harness 自我进化工具。
 
-它的目标不是让 agent 无限制地自动修改自己，而是把真实工作中的会话、用户反馈、失败记录、工具输出、报告、trace 和外部调研，转化成可审查、可验证、可回滚的 skill 优化。
+GitHub 仓库：https://github.com/rwang23/skill-evolution
+
+它的目标不是让 agent 无限制地自动修改自己，而是把真实工作中的会话、用户反馈、失败记录、工具输出、报告、trace、eval、hook 事件和外部调研，转化成可审查、可验证、可回滚的 skill / harness 优化。
 
 ## 它解决什么问题
 
@@ -16,41 +18,48 @@
 
 ## 安装
 
-把整个文件夹复制到你的 agent 会扫描的 skills 目录。
+先克隆公开仓库：
+
+```bash
+git clone https://github.com/rwang23/skill-evolution.git /tmp/skill-evolution
+```
 
 macOS/Linux：
 
 ```bash
 mkdir -p ~/.codex/skills ~/.claude/skills ~/.hermes/skills
-cp -R ./skill-evolution ~/.codex/skills/
-cp -R ./skill-evolution ~/.claude/skills/
-cp -R ./skill-evolution ~/.hermes/skills/
+cp -R /tmp/skill-evolution ~/.codex/skills/
+cp -R /tmp/skill-evolution ~/.claude/skills/
+cp -R /tmp/skill-evolution ~/.hermes/skills/
 ```
 
 Windows PowerShell：
 
 ```powershell
+$Repo = Join-Path $env:TEMP "skill-evolution"
+git clone https://github.com/rwang23/skill-evolution.git $Repo
+
 # Codex
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.codex\skills\"
+Copy-Item -Recurse $Repo "$env:USERPROFILE\.codex\skills\"
 
 # Claude Code，如果你的 Claude Code 配置会读取这个目录
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.claude\skills\"
+Copy-Item -Recurse $Repo "$env:USERPROFILE\.claude\skills\"
 
 # Hermes
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.hermes\skills\"
+Copy-Item -Recurse $Repo "$env:USERPROFILE\.hermes\skills\"
 ```
 
-其他兼容 Agent Skills 的工具，把它放到对应的 skill 扫描目录即可。
+其他兼容 Agent Skills 的工具，把克隆得到的 `skill-evolution` 文件夹放到对应的 skill 扫描目录即可。如果目标目录已经存在旧版本，先备份或检查本地修改，不要盲目覆盖。
 
 ## 让 Agent 自动安装
 
 可以把下面这段直接复制给有 shell 和 Git 权限的 agent：
 
 ```text
-Install the public Agent Skill repository `skill-evolution` into my local agent skills directory.
+Install the public Agent Skill repository https://github.com/rwang23/skill-evolution into my local agent skills directory.
 
 Requirements:
-- Clone or download the repository into a temporary directory.
+- Clone `https://github.com/rwang23/skill-evolution.git` into a temporary directory.
 - Copy the `skill-evolution` folder into the skills directory for my active agent:
   - Codex: `$CODEX_HOME/skills` or `$HOME/.codex/skills`
   - Claude Code: `$HOME/.claude/skills`
@@ -69,6 +78,8 @@ Requirements:
 ```text
 Use $skill-evolution to review recent sessions, convert recurring feedback into evals, and propose safe skill or harness improvements.
 ```
+
+当 agent 已经索引该 skill 时，下列表达也应该能触发它：`skill upgrade`、`skill optimization`、`self-improving agent`、`agent harness`、`loop engineering`、`hook-based skill update`、`技能进化`、`技能升级`、`技能优化`、`自我更新`、`自我改进`。
 
 也可以直接运行 transcript 提取脚本：
 
@@ -96,7 +107,7 @@ node ./scripts/extract-session.js --session-dir ~/path/to/sessions --query "user
 node ./scripts/propose-skill-evolution.js \
   --agent codex \
   --cwd "$PWD" \
-  --skill-dir ./skill-evolution
+  --skill-dir .
 ```
 
 默认输出到 `~/.agent-skill-evolution/proposals/`，也可以用 `--output-dir` 指定。
@@ -136,8 +147,8 @@ node "$SkillDir\scripts\propose-skill-evolution.js" `
 ## 验证
 
 ```bash
-node ./skill-evolution/scripts/validate-skill-package.js ./skill-evolution
-python ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ./skill-evolution
+node ~/.codex/skills/skill-evolution/scripts/validate-skill-package.js ~/.codex/skills/skill-evolution
+python ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ~/.codex/skills/skill-evolution
 ```
 
 ## 许可
