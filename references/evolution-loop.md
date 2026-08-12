@@ -24,6 +24,27 @@ Use the lightest cadence that catches meaningful drift:
 - Release-time: before publishing or syncing skills across agent scopes.
 - Incident-time: after a bad deploy, destructive near miss, public copy error, or repeated verification miss.
 
+## Proposal-only milestone checkpoint
+
+At a meaningful project milestone or declared closeout, run an on-demand review when the user asks or when at least two independent signals exist:
+
+1. A user correction would change future agent behavior.
+2. The work includes repeated failure, recovery, a dead end, or a verification miss.
+3. The agent discovered a workflow likely to recur.
+4. An invoked Skill missed its trigger, output, or validation expectation.
+
+Inspect only the current milestone and the smallest relevant evidence surface. Return `no candidate` when the threshold is not met or the lesson does not generalize. Otherwise write a proposal with evidence, target, alternatives, validation, maturity impact, and risk.
+
+The checkpoint does not edit a Skill, hook, registry, project file, or Git state. An accepted candidate moves to a separately authorized editing workflow.
+
+## Maturity handoff
+
+Use the maturity vocabulary in [the local quality contract](skill-quality-contract.md). Maturity describes the validation and governance a reusable Skill asset needs. It does not grant permission for a live action or package edit.
+
+For a relevant candidate, record `current`, `recommendation`, `reason`, `required_gates`, and `missing_evidence`. Valid recommendations are `no maturity impact`, `retain`, `promote`, `observe more evidence`, and `no-skill`.
+
+Do not promote from a single session. Promotion needs an observed escalation such as shared reuse, route confusion, organizational dependency, explicit distribution, public claims, broad permissions, or a security, compliance, or release boundary. Do not demote merely because a Skill has been quiet; reducing protections needs an explicit owner decision.
+
 ## Hook Architecture
 
 Hooks should normally be non-destructive:
@@ -109,6 +130,7 @@ For a public repository:
 ## Non-Goals
 
 - Do not train a model.
+- Do not turn proposal-only milestone reviews into automatic hooks or scheduled background scans without explicit authorization.
 - Do not let hooks silently rewrite production skills.
 - Do not encode every user preference as a global rule.
 - Do not optimize for novelty over repeatable correctness.

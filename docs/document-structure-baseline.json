@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "status": "provisional",
+  "last_reviewed": "2026-08-12",
+  "owner": "repository owner",
+  "confirmed_by": null,
+  "confirmed_at": null,
+  "project_profiles": ["platform-automation"],
+  "document_model": "compact standalone Skill package",
+  "number_bands": {
+    "91": {
+      "name": "audit",
+      "path": "91-audit",
+      "purpose": "Dated audits only when durable retention is required",
+      "optional": true
+    },
+    "92": {
+      "name": "report",
+      "path": "92-report",
+      "purpose": "Curated reports only when durable retention is required",
+      "optional": true
+    },
+    "93": {
+      "name": "records",
+      "path": "93-records",
+      "purpose": "Retained records only when durable retention is required",
+      "optional": true
+    },
+    "94": {
+      "name": "archive",
+      "path": "94-archive",
+      "purpose": "Curated historical material only",
+      "optional": true
+    }
+  },
+  "lifecycle_roots": {},
+  "context_model": "task-scoped; generated proposals remain outside the repository by default",
+  "context_surfaces": {},
+  "docs_index": "README.md",
+  "structure_authority": "document-structure-baseline.json",
+  "content_authorities": {
+    "workflow": "../SKILL.md",
+    "evolution_contract": "../references/skill-quality-contract.md",
+    "proposal_generator": "../scripts/propose-skill-evolution.js"
+  },
+  "new_folder_policy": {
+    "allowed": true,
+    "requires": [
+      "purpose",
+      "profile_fit",
+      "role_and_lifecycle",
+      "index_entry",
+      "baseline_update"
+    ]
+  },
+  "change_control": {
+    "pre_change_approval_required": false,
+    "post_change_report_required": true,
+    "baseline_confirmation_required": true
+  }
+}

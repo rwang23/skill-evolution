@@ -1,153 +1,123 @@
 # Skill Evolution
 
-这是一个用于 Codex、Claude Code、Hermes、Antigravity、OpenAI Agent Skills 以及兼容 Agent Skills 标准的智能体的 skill / harness 自我进化工具。
+Skill Evolution 把重复出现的 Agent 行为、用户纠正、路由遗漏和验证失败整理成可审阅的 Skill 或 Agent Harness 改进提案。它负责收集证据和比较方案，不负责应用修改。
 
-GitHub 仓库：https://github.com/rwang23/skill-evolution
+[English README](README.md)
 
-它的目标不是让 agent 无限制地自动修改自己，而是把真实工作中的会话、用户反馈、失败记录、工具输出、报告、trace、eval、hook 事件和外部调研，转化成可审查、可验证、可回滚的 skill / harness 优化。
+## 它负责什么
 
-## 它解决什么问题
+当某个可复用行为可能需要调整，而且动手前必须还原证据链时，使用本 Skill。结果只有两种：`no candidate`，或一份包含证据、备选方案、验证、成熟度影响、风险和待审批状态的提案。
 
-- 不只读取最终总结报告，而是回读完整 session 和对话过程。
-- 从人类反馈、反复失败、成功修复中提炼可复用的规则。
-- 判断应该修改 `SKILL.md`、reference、script，还是补 eval/checker。
-- 支持标准 Agent Skills 文件夹结构：`SKILL.md`、`scripts/`、`references/`。
-- 给出安全的 hook 方案：先捕获证据，再生成优化提案，最后经确认后应用。
-- 自带可配置的 session 提取脚本，支持 Codex、Claude 风格 JSONL、通用 JSONL/JSON、Markdown 和纯文本 transcript。
-- 增加可运行的 proposal 生成器和公开包验证器，支持 PR-gated skill evolution。
+Skill Evolution 不创建新 Skill 包，不做量化评分，不修改已接受的方案，不安装文件，也不写入 Git。这些动作需要单独的工具和权限。
 
-## 安装
+## 独立运行
 
-先克隆公开仓库：
-
-```bash
-git clone https://github.com/rwang23/skill-evolution.git
-```
-
-macOS/Linux：
-
-```bash
-mkdir -p ~/.codex/skills ~/.claude/skills ~/.hermes/skills
-cp -R skill-evolution ~/.codex/skills/
-cp -R skill-evolution ~/.claude/skills/
-cp -R skill-evolution ~/.hermes/skills/
-```
-
-Windows PowerShell：
-
-```powershell
-git clone https://github.com/rwang23/skill-evolution.git
-
-# Codex
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.codex\skills\"
-
-# Claude Code，如果你的 Claude Code 配置会读取这个目录
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.claude\skills\"
-
-# Hermes
-Copy-Item -Recurse .\skill-evolution "$env:USERPROFILE\.hermes\skills\"
-```
-
-其他兼容 Agent Skills 的工具，把克隆得到的 `skill-evolution` 文件夹放到对应的 skill 扫描目录即可。如果目标目录已经存在旧版本，先备份或检查本地修改，不要盲目覆盖。
-
-## 让 Agent 自动安装
-
-可以把下面这段直接复制给有 shell 和 Git 权限的 agent：
+运行环境只需要 Node.js 18 或更高版本，全部代码只使用 Node.js 标准库。演化契约、会话提取器、提案生成器、验证器、路由用例和测试都在本仓库内。
 
 ```text
-Install the public Agent Skill repository https://github.com/rwang23/skill-evolution into my local agent skills directory.
-
-Requirements:
-- Clone `https://github.com/rwang23/skill-evolution.git` into any workspace or downloads directory you normally use.
-- Copy the `skill-evolution` folder into the skills directory for my active agent:
-  - Codex: `$CODEX_HOME/skills` or `$HOME/.codex/skills`
-  - Claude Code: `$HOME/.claude/skills`
-  - Hermes: `$HOME/.hermes/skills`
-  - Windows equivalents should use `%USERPROFILE%` or `$env:USERPROFILE`.
-- Run `node scripts/validate-skill-package.js <installed-skill-dir>`.
-- If Codex's skill-creator validator exists locally, also run `quick_validate.py`.
-- Do not overwrite a dirty existing copy. Back it up or ask first.
-- Report the installed path and validation output.
+Skill Evolution
+├── SKILL.md
+├── references/skill-quality-contract.md
+├── scripts/extract-session.js
+├── scripts/propose-skill-evolution.js
+├── scripts/validate-skill-package.js
+└── evals/evals.json
 ```
 
-## 使用方式
+它不调用 SkillQC、Agent Skill Creator、平台管理的 Skill Creator，也不依赖私有本地配置。你可以附加审计报告或其他证据，但这些都是可选输入，不能代替修改授权。
 
-可以显式让 agent 调用：
+## 安装给 Agent
 
-```text
-Use $skill-evolution to review recent sessions, convert recurring feedback into evals, and propose safe skill or harness improvements.
-```
-
-也可以直接运行 transcript 提取脚本：
-
-```bash
-node ./scripts/extract-session.js --agent codex --cwd "$PWD" --max-messages 120 --include-tool-output
-node ./scripts/extract-session.js --session-dir ~/path/to/sessions --query "user correction" --format json
-```
-
-## 安全模型
-
-推荐的闭环是：
-
-1. 捕获证据。
-2. 生成带引用的 diff 提案。
-3. 验证修改后的 skill。
-4. 经人工确认或可信本地流程后，再本地应用或打开 draft PR。
-
-自动 hook 通常只应该写入优化提案，不应该静默修改 skill。
-
-## Hook 或定期审查
-
-可以在长任务结束后、Claude Code hook、Codex wrapper、cron/systemd 或 CI 中运行：
-
-```bash
-node ./scripts/propose-skill-evolution.js \
-  --agent codex \
-  --cwd "$PWD" \
-  --skill-dir .
-```
-
-默认输出到 `~/.agent-skill-evolution/proposals/`，也可以用 `--output-dir` 指定。
-
-## Hook 安装方式
-
-Claude Code：
-
-```bash
-node "$HOME/.codex/skills/skill-evolution/scripts/propose-skill-evolution.js" \
-  --agent claude \
-  --session-dir "$HOME/.claude/projects" \
-  --cwd "$PWD" \
-  --skill-dir "$HOME/.codex/skills/skill-evolution"
-```
-
-Linux cron 或 systemd timer：
-
-```bash
-SKILL_DIR="$HOME/.codex/skills/skill-evolution"
-node "$SKILL_DIR/scripts/propose-skill-evolution.js" \
-  --agent codex \
-  --session-dir "$HOME/.codex/sessions" \
-  --skill-dir "$SKILL_DIR"
-```
-
-Windows PowerShell 计划任务命令：
+把仓库克隆到 Agent 能发现的 Skill 目录：
 
 ```powershell
-$SkillDir = "$env:USERPROFILE\.codex\skills\skill-evolution"
-node "$SkillDir\scripts\propose-skill-evolution.js" `
-  --agent codex `
-  --session-dir "$env:USERPROFILE\.codex\sessions" `
-  --skill-dir "$SkillDir"
+git clone https://github.com/rwang23/skill-evolution.git `
+  "$env:USERPROFILE\.codex\skills\skill-evolution"
 ```
+
+其他兼容 Agent Skills 的运行环境也可以直接复制同一个 `skill-evolution` 文件夹。文件夹名称不要改动，它需要和 frontmatter 中的名称一致。
+
+安装后直接告诉 Agent：
+
+```text
+请使用 $skill-evolution 复盘这个里程碑中重复出现的路由失败。
+比较最小契约修改和先补回归用例两种方案。
+只返回提案，不要修改文件。
+```
+
+## 生成提案
+
+需要聚焦查看会话证据时，先规范化导出的会话：
+
+```powershell
+node scripts/extract-session.js C:\path\to\session.jsonl `
+  --format json `
+  --include-tool-output `
+  --query routing
+```
+
+生成 JSON 和 Markdown 审阅文件：
+
+```powershell
+node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
+  --target-skill-dir C:\path\to\target-skill `
+  --output-dir C:\path\to\review
+```
+
+生成器使用确定性信号分数整理证据。这个分数不能证明经验已经具有普适性，审阅者仍需回到原始上下文检查引用和目标文件。
+
+也可以附加一份通用 JSON 审计作为可选证据：
+
+```powershell
+node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
+  --target-skill-dir C:\path\to\target-skill `
+  --baseline-report C:\path\to\audit.json `
+  --output-dir C:\path\to\review
+```
+
+## 提案边界
+
+每份 version 2 提案都包含：
+
+- `status: "proposal"` 或 `"no-candidate"`；
+- `mode: "proposal-only"`；
+- 已脱敏的证据和信号判断；
+- 目标文件与成熟度影响；
+- 证据足够时至少比较两个候选方案；
+- 验证要求；
+- `approval.required: true`、`approval.status: "pending"` 和 `apply_plan: null`。
+
+默认推荐先补回归用例，因为它能在扩大修改前复现已经观察到的问题。审阅者或另一个获得明确授权的工作流可以在核对原始证据后选择其他方案。
 
 ## 验证
 
-```bash
-node ~/.codex/skills/skill-evolution/scripts/validate-skill-package.js ~/.codex/skills/skill-evolution
-python ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ~/.codex/skills/skill-evolution
+单独验证本 Skill 包：
+
+```powershell
+node scripts/validate-skill-package.js .
 ```
+
+用同一份本地契约验证生成的提案：
+
+```powershell
+node scripts/validate-skill-package.js . `
+  --proposal C:\path\to\review\proposal.json `
+  --json
+```
+
+验证范围包括路由元数据、只提案边界、本地链接、用例平衡、兄弟 Skill 独立性、私有路径、疑似凭据、脚本语法和提案结构。
+
+## 开发验证
+
+在仓库根目录运行：
+
+```powershell
+node --test tests/*.test.js
+node scripts/validate-skill-package.js .
+```
+
+CI 会在 Windows 和 Linux 上运行相同检查。合成会话只能证明包行为和回归覆盖，不能证明未来应用某个修改后一定能改善业务结果。
 
 ## 许可
 
-MIT
+MIT，详见 [LICENSE](LICENSE)。

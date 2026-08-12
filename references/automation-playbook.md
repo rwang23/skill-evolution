@@ -33,6 +33,12 @@ Create a proposal when any of these are true:
 
 Do not propose a skill update for one-off project state, secrets, transient counts, or purely subjective preference unless it repeats.
 
+## Interactive milestone routing
+
+Keep lifecycle hooks disabled by default for interactive work. At a meaningful milestone or declared closeout, run Skill Evolution on demand when the user asks or when at least two evidence signals exist. The result remains `no candidate` or a reviewable proposal.
+
+Use a scheduled scan or native hook only when the user explicitly asks to operate one. It must write proposal artifacts and must not mutate Skills.
+
 ## Proposal Format
 
 `scripts/propose-skill-evolution.js` writes:
@@ -80,7 +86,7 @@ node ~/.codex/skills/skill-evolution/scripts/propose-skill-evolution.js \
   --skill-dir ~/.codex/skills/skill-evolution
 ```
 
-For interactive app sessions, use a scheduled local review that scans recent sessions and writes proposals.
+For interactive app sessions, prefer the on-demand milestone review above. Add a scheduled local review only with explicit authorization.
 
 ## Hermes Workflow
 

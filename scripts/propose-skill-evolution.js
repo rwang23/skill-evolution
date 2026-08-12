@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Generate a reviewable skill-evolution proposal from a session transcript.
+ * Generate proposal-only Skill evolution artifacts from transcript evidence.
  *
- * This script does not edit skills. It captures signals and writes proposal
- * artifacts that a human or trusted agent can review.
+ * This script never edits a target Skill. It uses only Node.js standard-library
+ * modules and the extractor bundled in this repository.
  */
 
 const fs = require('fs');
-const path = require('path');
 const os = require('os');
+const path = require('path');
 const { spawnSync } = require('child_process');
 
 const args = process.argv.slice(2);
@@ -17,29 +17,35 @@ let sessionPath = null;
 let sessionDir = null;
 let agent = 'generic';
 let cwd = process.cwd();
-let skillDir = null;
+let targetSkillDir = null;
+let baselineReport = null;
 let outputDir = path.join(os.homedir(), '.agent-skill-evolution', 'proposals');
 let minToolCalls = 5;
+let minSignalScore = 4;
 let query = null;
 let includeSystem = false;
 let redactPaths = true;
 
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg === '--agent' && args[i + 1]) {
-    agent = args[++i];
-  } else if (arg === '--cwd' && args[i + 1]) {
-    cwd = args[++i];
-  } else if (arg === '--session-dir' && args[i + 1]) {
-    sessionDir = args[++i];
-  } else if (arg === '--skill-dir' && args[i + 1]) {
-    skillDir = args[++i];
-  } else if (arg === '--output-dir' && args[i + 1]) {
-    outputDir = args[++i];
-  } else if (arg === '--min-tool-calls' && args[i + 1]) {
-    minToolCalls = Number.parseInt(args[++i], 10);
-  } else if (arg === '--query' && args[i + 1]) {
-    query = args[++i];
+for (let index = 0; index < args.length; index += 1) {
+  const arg = args[index];
+  if (arg === '--agent' && args[index + 1]) {
+    agent = args[++index];
+  } else if (arg === '--cwd' && args[index + 1]) {
+    cwd = args[++index];
+  } else if (arg === '--session-dir' && args[index + 1]) {
+    sessionDir = args[++index];
+  } else if ((arg === '--target-skill-dir' || arg === '--skill-dir') && args[index + 1]) {
+    targetSkillDir = args[++index];
+  } else if (arg === '--baseline-report' && args[index + 1]) {
+    baselineReport = args[++index];
+  } else if (arg === '--output-dir' && args[index + 1]) {
+    outputDir = args[++index];
+  } else if (arg === '--min-tool-calls' && args[index + 1]) {
+    minToolCalls = Number.parseInt(args[++index], 10);
+  } else if (arg === '--min-signal-score' && args[index + 1]) {
+    minSignalScore = Number.parseInt(args[++index], 10);
+  } else if (arg === '--query' && args[index + 1]) {
+    query = args[++index];
   } else if (arg === '--include-system') {
     includeSystem = true;
   } else if (arg === '--no-redact-paths') {
@@ -54,241 +60,370 @@ function die(message) {
   process.exit(1);
 }
 
-function skillRoot() {
-  if (skillDir) return path.resolve(skillDir);
-  return path.resolve(__dirname, '..');
+function redact(value) {
+  let output = String(value || '');
+  output = output.replace(/\bsk-[a-z0-9_-]{12,}\b/gi, '[REDACTED_TOKEN]');
+  output = output.replace(/\bgh[pousr]_[A-Za-z0-9]{16,}\b/g, '[REDACTED_TOKEN]');
+  output = output.replace(/\bAKIA[0-9A-Z]{16}\b/g, '[REDACTED_TOKEN]');
+  output = output.replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----/g, '[REDACTED_PRIVATE_KEY]');
+  if (!redactPaths) return output;
+
+  const home = os.homedir();
+  const resolvedCwd = path.resolve(cwd);
+  for (const [source, replacement] of [
+    [home, '$HOME'],
+    [home && home.replace(/\\/g, '/'), '$HOME'],
+    [resolvedCwd, '$PWD'],
+    [resolvedCwd.replace(/\\/g, '/'), '$PWD'],
+  ]) {
+    if (source) output = output.split(source).join(replacement);
+  }
+  output = output.replace(/[A-Z]:\\[^\\\s"`]+\\[^\\\s"`]+/gi, (match) =>
+    /:\\Users\\/i.test(match) ? '$HOME' : match,
+  );
+  output = output.replace(/\/(?:Users|home)\/[^/\s"`]+/g, '$HOME');
+  return output;
 }
 
 function runExtractor() {
-  const extractor = path.join(skillRoot(), 'scripts', 'extract-session.js');
-  if (!fs.existsSync(extractor)) die(`Missing extractor: ${extractor}`);
-
-  const commandArgs = [extractor, '--agent', agent, '--cwd', cwd, '--format', 'json', '--include-tool-output', '--max-messages', '500'];
+  const extractor = path.join(__dirname, 'extract-session.js');
+  if (!fs.existsSync(extractor)) die(`Missing bundled extractor: ${extractor}`);
+  const commandArgs = [
+    extractor,
+    '--agent',
+    agent,
+    '--cwd',
+    cwd,
+    '--format',
+    'json',
+    '--include-tool-output',
+    '--max-messages',
+    '500',
+  ];
   if (sessionPath) commandArgs.splice(1, 0, sessionPath);
   if (sessionDir) commandArgs.push('--session-dir', sessionDir);
   if (query) commandArgs.push('--query', query);
 
   const result = spawnSync(process.execPath, commandArgs, { encoding: 'utf8' });
-  if (result.status !== 0) {
-    die(`Extractor failed:\n${result.stderr || result.stdout}`);
-  }
+  if (result.status !== 0) die(`Extractor failed:\n${result.stderr || result.stdout}`);
   try {
     return JSON.parse(result.stdout);
   } catch (error) {
-    die(`Extractor did not return JSON: ${error.message}`);
+    return die(`Extractor did not return JSON: ${error.message}`);
   }
 }
 
-function scoreMessages(messages) {
-  const correctionPatterns = [
-    /not enough/i,
-    /you missed/i,
-    /should have/i,
-    /wrong/i,
-    /不够/,
-    /没有/,
-    /不是/,
-    /应该/,
-    /问题/,
-    /纠正/,
-    /不对/,
-  ];
-  const errorPatterns = [
-    /error/i,
-    /failed/i,
-    /exception/i,
-    /traceback/i,
-    /denied/i,
-    /失败/,
-    /报错/,
-    /错误/,
-  ];
-  const workflowPatterns = [
-    /repeat/i,
-    /workflow/i,
-    /hook/i,
-    /skill/i,
-    /session/i,
-    /evolution/i,
-    /self-improv/i,
-    /流程/,
-    /复用/,
-    /自我/,
-    /优化/,
-    /进化/,
-  ];
+function matchesAny(text, patterns) {
+  return patterns.some((pattern) => pattern.test(text));
+}
 
+function analyze(messages) {
+  const patterns = {
+    correction: [/\bwrong\b/i, /you missed/i, /should have/i, /not what i asked/i, /不是/, /不对/, /遗漏/, /应该/, /纠正/],
+    error: [/\berror\b/i, /\bfailed\b/i, /exception/i, /traceback/i, /denied/i, /失败/, /报错/, /错误/],
+    routing: [/routing/i, /trigger/i, /should[_ -]?trigger/i, /wrong skill/i, /路由/, /触发/, /选错.*skill/i],
+    workflow: [/repeat(?:ed|ing)?/i, /recurr/i, /workflow/i, /regression/i, /skill/i, /harness/i, /重复/, /流程/, /回归/, /技能/, /进化/],
+  };
   const counts = {
     toolCalls: 0,
     toolOutputs: 0,
     userCorrections: 0,
     errorSignals: 0,
+    routingSignals: 0,
     workflowSignals: 0,
   };
   const evidence = [];
+  const seen = new Set();
 
-  for (const msg of messages) {
-    if (!includeSystem && ['system', 'developer'].includes(msg.role)) continue;
-    const text = msg.content || '';
-    if (msg.role === 'tool_call' || /tool_call/i.test(msg.kind || '')) counts.toolCalls++;
-    if (msg.role === 'tool_output' || /tool_output/i.test(msg.kind || '')) counts.toolOutputs++;
+  function capture(type, message) {
+    if (evidence.length >= 16) return;
+    const excerpt = redact(String(message.content || '').slice(0, 600));
+    const fingerprint = `${type}:${excerpt}`;
+    if (!excerpt || seen.has(fingerprint)) return;
+    seen.add(fingerprint);
+    evidence.push({
+      id: `E${String(evidence.length + 1).padStart(2, '0')}`,
+      type,
+      role: message.role || 'unknown',
+      timestamp: message.timestamp || null,
+      excerpt,
+      source: 'session',
+    });
+  }
 
-    const matchedCorrection = msg.role === 'user' && correctionPatterns.some((pattern) => pattern.test(text));
-    const matchedError = errorPatterns.some((pattern) => pattern.test(text));
-    const matchedWorkflow = workflowPatterns.some((pattern) => pattern.test(text));
-
-    if (matchedCorrection) {
-      counts.userCorrections++;
-      evidence.push({ type: 'user-correction', role: msg.role, timestamp: msg.timestamp, excerpt: redact(text.slice(0, 500)) });
+  for (const message of messages) {
+    if (!includeSystem && ['system', 'developer'].includes(message.role)) continue;
+    const text = String(message.content || '');
+    if (message.role === 'tool_call' || /tool_call/i.test(message.kind || '')) counts.toolCalls += 1;
+    if (message.role === 'tool_output' || /tool_output/i.test(message.kind || '')) counts.toolOutputs += 1;
+    if (message.role === 'user' && matchesAny(text, patterns.correction)) {
+      counts.userCorrections += 1;
+      capture('user-correction', message);
     }
-    if (matchedError) {
-      counts.errorSignals++;
-      if (evidence.length < 12) evidence.push({ type: 'error-signal', role: msg.role, timestamp: msg.timestamp, excerpt: redact(text.slice(0, 500)) });
+    if (matchesAny(text, patterns.error)) {
+      counts.errorSignals += 1;
+      capture('error-signal', message);
     }
-    if (matchedWorkflow) {
-      counts.workflowSignals++;
-      if (evidence.length < 12) evidence.push({ type: 'workflow-signal', role: msg.role, timestamp: msg.timestamp, excerpt: redact(text.slice(0, 500)) });
+    if (matchesAny(text, patterns.routing)) {
+      counts.routingSignals += 1;
+      capture('routing-signal', message);
+    }
+    if (matchesAny(text, patterns.workflow)) {
+      counts.workflowSignals += 1;
+      capture('workflow-signal', message);
     }
   }
 
   let score = 0;
-  if (counts.toolCalls >= minToolCalls) score += 2;
-  score += Math.min(counts.userCorrections * 3, 9);
-  score += Math.min(counts.errorSignals, 4);
+  if (counts.toolCalls >= minToolCalls) score += 1;
+  score += Math.min(counts.userCorrections * 4, 12);
+  score += Math.min(counts.errorSignals * 2, 6);
+  score += Math.min(counts.routingSignals * 2, 6);
   score += Math.min(counts.workflowSignals, 4);
 
+  const strongEvidence =
+    counts.userCorrections > 0 ||
+    counts.errorSignals > 0 ||
+    counts.routingSignals > 0 ||
+    counts.workflowSignals >= 2;
   const triggers = [];
-  if (counts.toolCalls >= minToolCalls) triggers.push(`complex task: ${counts.toolCalls} tool calls`);
   if (counts.userCorrections) triggers.push(`user corrections: ${counts.userCorrections}`);
-  if (counts.errorSignals) triggers.push(`error/dead-end signals: ${counts.errorSignals}`);
-  if (counts.workflowSignals) triggers.push(`workflow/skill signals: ${counts.workflowSignals}`);
-
-  return { counts, score, triggers, evidence: evidence.slice(0, 12) };
+  if (counts.errorSignals) triggers.push(`error or dead-end signals: ${counts.errorSignals}`);
+  if (counts.routingSignals) triggers.push(`routing signals: ${counts.routingSignals}`);
+  if (counts.workflowSignals >= 2) triggers.push(`repeated workflow signals: ${counts.workflowSignals}`);
+  if (counts.toolCalls >= minToolCalls) triggers.push(`complex task: ${counts.toolCalls} tool calls`);
+  return {
+    score,
+    threshold: minSignalScore,
+    strongEvidence,
+    decision: score >= minSignalScore && strongEvidence ? 'proposal' : 'no-candidate',
+    triggers,
+    counts,
+    evidence,
+  };
 }
 
-function inferTargets(messages, configuredSkillDir) {
-  const targets = new Set();
-  if (configuredSkillDir) targets.add(redact(path.resolve(configuredSkillDir)));
+function targetNameFromDir(value) {
+  if (!value) return null;
+  return path.basename(path.resolve(value));
+}
 
-  for (const msg of messages) {
-    const text = msg.content || '';
-    const skillMentions = text.match(/\b[a-z0-9][a-z0-9-]{2,63}\b/g) || [];
-    for (const item of skillMentions) {
-      if (item.includes('skill') || item.includes('optimize') || item.includes('update')) {
-        targets.add(item);
-      }
+function inferTargetNames(messages) {
+  const names = new Set();
+  if (targetSkillDir) names.add(targetNameFromDir(targetSkillDir));
+  for (const message of messages) {
+    const text = String(message.content || '');
+    const matches = text.match(/\$?[a-z0-9]+(?:-[a-z0-9]+)+/gi) || [];
+    for (const match of matches) {
+      const name = match.replace(/^\$/, '').toLowerCase();
+      if (name.length <= 64) names.add(name);
     }
   }
-  return Array.from(targets).slice(0, 8);
+  return [...names].filter(Boolean).slice(0, 8);
 }
 
-function redact(value) {
-  const text = String(value || '');
-  if (!redactPaths) return text;
-  const home = os.homedir();
-  let output = text;
-  if (home) {
-    output = output.split(home).join('$HOME');
-    output = output.split(home.replace(/\\/g, '/')).join('$HOME');
+function readBaseline() {
+  if (!baselineReport) return null;
+  const resolved = path.resolve(baselineReport);
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(resolved, 'utf8'));
+  } catch (error) {
+    die(`Cannot read --baseline-report as JSON: ${error.message}`);
   }
-  const normalizedCwd = path.resolve(cwd);
-  if (normalizedCwd) {
-    output = output.split(normalizedCwd).join('$PWD');
-    output = output.split(normalizedCwd.replace(/\\/g, '/')).join('$PWD');
-  }
-  output = output.replace(/C:\\\\Users\\\\[^\\\\\s"`]+/gi, '$HOME');
-  output = output.replace(/C:\\Users\\[^\\\s"`]+/gi, '$HOME');
-  output = output.replace(/\/Users\/[^/\s"`]+/g, '$HOME');
-  output = output.replace(/\/home\/[^/\s"`]+/g, '$HOME');
-  output = output.replace(/C:\\\\projects\\\\[^\\\\\s"`]+/gi, '$PWD');
-  output = output.replace(/C:\\projects\\[^\\\s"`]+/gi, '$PWD');
-  return output;
-}
-
-function timestampSlug() {
-  return new Date().toISOString().replace(/[:.]/g, '-');
-}
-
-function writeProposal(transcript, analysis) {
-  fs.mkdirSync(outputDir, { recursive: true });
-  const slug = timestampSlug();
-  const base = path.join(outputDir, `${slug}-${agent}-skill-evolution`);
-  const proposal = {
-    version: 1,
-    status: 'proposed',
-    createdAt: new Date().toISOString(),
-    agent,
-    cwd: redact(cwd),
-    source: redact(transcript.path),
-    skillDir: skillDir ? redact(path.resolve(skillDir)) : null,
-    score: analysis.score,
-    triggers: analysis.triggers,
-    counts: analysis.counts,
-    evidence: analysis.evidence,
-    candidateTargets: inferTargets(transcript.messages || [], skillDir),
-    recommendedNextSteps: [
-      'Read the cited evidence in the source transcript.',
-      'Classify each lesson as durable rule, script, eval, reference, or one-off state.',
-      'Create the smallest diff against the relevant skill.',
-      'Run validate-skill-package.js and any task-specific evals.',
-      'Apply only after approval; use a branch or draft PR for broad changes.',
-    ],
+  const score = payload.total_score ?? payload.score ?? payload.summary?.average_score ?? null;
+  const status = payload.status ?? payload.verdict ?? payload.summary?.status ?? null;
+  return {
+    supplied: true,
+    path: redact(resolved),
+    status: typeof status === 'string' ? status : null,
+    score: typeof score === 'number' ? score : null,
+    note: 'Optional external evidence; it does not grant apply authority.',
   };
-
-  fs.writeFileSync(`${base}.json`, JSON.stringify(proposal, null, 2));
-  fs.writeFileSync(`${base}.md`, formatMarkdown(proposal));
-  return { json: `${base}.json`, markdown: `${base}.md`, proposal };
 }
 
-function formatMarkdown(proposal) {
+function targetSurface(analysis) {
+  if (analysis.counts.routingSignals > 0) return 'SKILL.md frontmatter description or routing eval';
+  if (analysis.counts.errorSignals > 0) return 'smallest workflow step, script, or regression fixture tied to the failure';
+  return 'smallest durable SKILL.md, reference, script, or eval surface supported by review';
+}
+
+function buildCandidates(analysis) {
+  const evidenceIds = analysis.evidence.map((item) => item.id);
+  const surface = targetSurface(analysis);
+  return [
+    {
+      id: 'minimal-contract',
+      label: 'Smallest durable contract change',
+      target_surface: surface,
+      intended_behavior: 'Prevent or shorten the evidenced failure with one bounded instruction or deterministic check.',
+      rationale: 'Changes the narrowest reusable surface that directly addresses the observed behavior.',
+      evidence_ids: evidenceIds,
+      validation: ['Add one focused regression case.', 'Run the target package validator and its relevant functional check.'],
+      risk: 'medium',
+      tradeoff: 'May miss a wider harness cause if the evidence set is incomplete.',
+    },
+    {
+      id: 'regression-first',
+      label: 'Add evidence without broad behavior change',
+      target_surface: 'eval or replay fixture',
+      intended_behavior: 'Make the observed miss reproducible before changing the active workflow.',
+      rationale: 'Improves evidence quality and reduces the risk of over-generalizing a single session.',
+      evidence_ids: evidenceIds,
+      validation: ['Replay the fixture against the current baseline.', 'Record the observed failure before any later edit.'],
+      risk: 'low',
+      tradeoff: 'Does not immediately change the target Skill behavior.',
+    },
+    {
+      id: 'observe-more',
+      label: 'Collect another independent observation',
+      target_surface: null,
+      intended_behavior: 'Defer package changes until a second observation confirms the same reusable lesson.',
+      rationale: 'Use when the current evidence is specific, ambiguous, or weakly attributed.',
+      evidence_ids: evidenceIds,
+      validation: ['Define the next observable trigger and expected result.'],
+      risk: 'low',
+      tradeoff: 'Delays a possible improvement while evidence accumulates.',
+    },
+  ];
+}
+
+function timestampSlug(timestamp) {
+  return timestamp.replace(/[:.]/g, '-');
+}
+
+function buildProposal(transcript, analysis, baseline) {
+  const createdAt = new Date().toISOString();
+  const status = analysis.decision;
+  return {
+    schema_version: 2,
+    artifact_type: 'skill-evolution-proposal',
+    status,
+    mode: 'proposal-only',
+    created_at: createdAt,
+    source: {
+      agent,
+      cwd: redact(path.resolve(cwd)),
+      transcript: redact(transcript.path),
+      baseline_report: baseline,
+    },
+    signal_assessment: {
+      score: analysis.score,
+      threshold: analysis.threshold,
+      strong_evidence: analysis.strongEvidence,
+      triggers: analysis.triggers,
+      counts: analysis.counts,
+      reason:
+        status === 'proposal'
+          ? 'The signal threshold and strong-evidence condition were met; human review must still test generalization.'
+          : 'The current evidence does not meet both the deterministic threshold and strong-evidence condition.',
+    },
+    target: {
+      skill_dir: targetSkillDir ? redact(path.resolve(targetSkillDir)) : null,
+      candidate_names: inferTargetNames(transcript.messages || []),
+      smallest_surface_hint: targetSurface(analysis),
+    },
+    evidence: analysis.evidence,
+    maturity_impact: {
+      decision: status === 'proposal' ? 'observe more evidence' : 'no-skill',
+      observed_fact: analysis.triggers.join('; ') || 'No durable signal established.',
+      additional_gates: [],
+      missing_evidence: ['Current target maturity and its gate results were not established by transcript scoring.'],
+    },
+    candidates: status === 'proposal' ? buildCandidates(analysis) : [],
+    recommended_candidate: status === 'proposal' ? 'regression-first' : null,
+    validation: {
+      package: 'node <skill-root>/scripts/validate-skill-package.js <skill-root>',
+      proposal: 'node <skill-root>/scripts/validate-skill-package.js <skill-root> --proposal <proposal.json>',
+      required: ['Review every evidence excerpt in its source context.', 'Run a target-specific regression check before any later edit.'],
+    },
+    approval: {
+      required: true,
+      status: 'pending',
+      note: 'A proposal is evidence for review, not authority to modify or publish a Skill.',
+    },
+    apply_plan: null,
+  };
+}
+
+function markdownFor(proposal) {
   const lines = [
-    '# Skill Evolution Proposal',
+    '# Skill Evolution proposal',
     '',
     `Status: ${proposal.status}`,
-    `Agent: ${proposal.agent}`,
-    `Created: ${proposal.createdAt}`,
-    `Source: ${proposal.source}`,
-    `CWD: ${proposal.cwd}`,
-    `Score: ${proposal.score}`,
+    `Mode: ${proposal.mode}`,
+    `Created: ${proposal.created_at}`,
+    `Source: ${proposal.source.transcript}`,
+    `Signal score: ${proposal.signal_assessment.score}/${proposal.signal_assessment.threshold} threshold`,
+    `Approval: ${proposal.approval.status}`,
     '',
-    '## Triggers',
+    '## Signal assessment',
     '',
-    ...(proposal.triggers.length ? proposal.triggers.map((item) => `- ${item}`) : ['- No strong trigger detected. Review manually before acting.']),
-    '',
-    '## Candidate Targets',
-    '',
-    ...(proposal.candidateTargets.length ? proposal.candidateTargets.map((item) => `- ${item}`) : ['- No obvious skill target inferred.']),
-    '',
-    '## Evidence',
+    proposal.signal_assessment.reason,
     '',
   ];
-
-  for (const item of proposal.evidence) {
-    lines.push(`### ${item.type} ${item.timestamp || ''}`.trim());
-    lines.push('');
-    lines.push('```text');
-    lines.push(item.excerpt);
-    lines.push('```');
-    lines.push('');
+  if (proposal.signal_assessment.triggers.length) {
+    lines.push(...proposal.signal_assessment.triggers.map((item) => `- ${item}`), '');
   }
-
-  lines.push('## Recommended Next Steps', '');
-  for (const item of proposal.recommendedNextSteps) lines.push(`- ${item}`);
-  lines.push('');
-  return lines.join('\n');
+  lines.push('## Evidence', '');
+  if (!proposal.evidence.length) lines.push('- No qualifying evidence excerpt was captured.', '');
+  for (const item of proposal.evidence) {
+    lines.push(`### ${item.id}: ${item.type}`, '', '```text', item.excerpt, '```', '');
+  }
+  lines.push('## Candidates', '');
+  if (!proposal.candidates.length) {
+    lines.push('- No candidate. Collect another directly observed correction or failure before proposing a reusable change.', '');
+  }
+  for (const candidate of proposal.candidates) {
+    lines.push(
+      `### ${candidate.id}: ${candidate.label}`,
+      '',
+      `Target: ${candidate.target_surface || 'none'}`,
+      '',
+      candidate.rationale,
+      '',
+      `Risk: ${candidate.risk}`,
+      `Tradeoff: ${candidate.tradeoff}`,
+      '',
+    );
+  }
+  lines.push(
+    '## Review boundary',
+    '',
+    `Recommended candidate: ${proposal.recommended_candidate || 'none'}`,
+    'No files were changed. apply_plan remains null until a separately authorized workflow acts on an accepted proposal.',
+    '',
+  );
+  return `${lines.join('\n')}\n`;
 }
 
-if (!Number.isFinite(minToolCalls) || minToolCalls < 1) {
-  die('--min-tool-calls must be a positive integer');
+function writeProposal(transcript, analysis, baseline) {
+  fs.mkdirSync(outputDir, { recursive: true });
+  const proposal = buildProposal(transcript, analysis, baseline);
+  const base = path.join(outputDir, `${timestampSlug(proposal.created_at)}-${agent}-skill-evolution`);
+  const jsonPath = `${base}.json`;
+  const markdownPath = `${base}.md`;
+  fs.writeFileSync(jsonPath, `${JSON.stringify(proposal, null, 2)}\n`, 'utf8');
+  fs.writeFileSync(markdownPath, markdownFor(proposal), 'utf8');
+  return { proposal, jsonPath, markdownPath };
 }
+
+if (!Number.isFinite(minToolCalls) || minToolCalls < 1) die('--min-tool-calls must be a positive integer');
+if (!Number.isFinite(minSignalScore) || minSignalScore < 1) die('--min-signal-score must be a positive integer');
 
 const transcript = runExtractor();
-const analysis = scoreMessages(transcript.messages || []);
-const output = writeProposal(transcript, analysis);
-
-console.log(JSON.stringify({
-  proposal: output.json,
-  markdown: output.markdown,
-  score: output.proposal.score,
-  triggers: output.proposal.triggers,
-}, null, 2));
+const analysis = analyze(transcript.messages || []);
+const output = writeProposal(transcript, analysis, readBaseline());
+console.log(
+  JSON.stringify(
+    {
+      status: output.proposal.status,
+      proposal: output.jsonPath,
+      markdown: output.markdownPath,
+      score: output.proposal.signal_assessment.score,
+      threshold: output.proposal.signal_assessment.threshold,
+    },
+    null,
+    2,
+  ),
+);

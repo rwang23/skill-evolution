@@ -1,0 +1,4 @@
+{"role":"user","timestamp":"2026-08-12T01:00:00Z","content":"The Skill routing was wrong again. This should trigger for refund questions, and the fixture under C:\\Users\\<person>\\work missed it."}
+{"role":"assistant","timestamp":"2026-08-12T01:00:10Z","content":"I will inspect the repeated routing failure and preserve the exact evidence."}
+{"role":"tool_call","timestamp":"2026-08-12T01:00:20Z","content":"routing regression check failed with one error"}
+{"role":"user","timestamp":"2026-08-12T01:00:30Z","content":"Do not rewrite the Skill yet. Compare a minimal fix with a regression-first option and leave approval pending."}
