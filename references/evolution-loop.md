@@ -105,6 +105,19 @@ Treat human corrections as the highest-signal training data:
 4. Add an eval/check that would catch the same miss.
 5. Report the before/after behavior in the proposal.
 
+## Comparison Before Recommendation
+
+For a material proposal, define a small comparison before expanding instructions:
+
+1. Bind the target revision, client/model, task inputs, and observable success condition. A change of model or environment can explain a difference independently of the Skill.
+2. Separate diagnosis into output quality, trigger precision, instruction compliance, and coverage of plausible task paths. Inspect a failure trace to distinguish a missing rule from a tool/environment failure or a rule the agent did not follow.
+3. Compare the current Skill with the candidate on identical inputs. Where capability uplift is the claim, include a no-Skill control. An encoded team preference is evaluated for workflow fidelity instead.
+4. Keep the task that motivated the edit separate from at least one held-out or near-neighbor task. Do not tune on the held-out answer. When independent evaluation is available and authorized, hide the preferred variant from its reviewer.
+5. Record pass/fail, unsafe or unrelated effects, and only the cost measures actually available, such as elapsed time, tool calls, or tokens. Missing measures remain unmeasured. A higher artifact score alone cannot establish improvement.
+6. Recommend the smallest change supported by the comparison. Use `observe more evidence` when results are tied or attribution is unclear; removal or consolidation can be proposed when the base model already covers a capability, but never applied automatically.
+
+SkillQC can supply the package-quality score, safety gate, and evidence grade as separate optional inputs. A `100 / PASS / E2` package still needs behavior evidence for an effectiveness claim. Keep local unit-test results, real-client observations, and operating outcomes separate.
+
 ## Session Back-Reading
 
 When a session was compressed, read backward:

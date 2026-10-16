@@ -5,57 +5,59 @@
  *
  * Usage:
  *   node scripts/extract-session.js [session-path]
- *   node scripts/extract-session.js --agent codex --cwd "$PWD"
+ *   node scripts/extract-session.js export.jsonl --agent codex
  *   node scripts/extract-session.js --session-dir ~/path/to/sessions --query evidence
  *   node scripts/extract-session.js session.jsonl --format json --include-tool-output
  */
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
 const args = process.argv.slice(2);
 let sessionPath = null;
 let sessionDir = null;
 let agent = null;
 let cwd = process.cwd();
+let cwdSupplied = false;
 let query = null;
 let maxMessages = 100;
 let includeToolOutput = false;
 let format = 'markdown';
+const maxInputBytes = 32 * 1024 * 1024;
+const coverage = { parse_errors: 0, context_messages_excluded: 0, mirrored_messages_removed: 0 };
+let sourceLine = null;
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
-  if (arg === '--agent' && args[i + 1]) {
+  if (arg === '--help' || arg === '-h') {
+    console.log('Usage: node extract-session.js <session-file> [--agent codex] [--format json] [--include-tool-output] [--query text] [--max-messages count]\nOr: --session-dir <directory> [--cwd <project>]');
+    process.exit(0);
+  } else if (arg === '--agent' && args[i + 1]) {
     agent = args[++i].toLowerCase();
   } else if (arg === '--cwd' && args[i + 1]) {
     cwd = args[++i];
+    cwdSupplied = true;
   } else if (arg === '--session-dir' && args[i + 1]) {
     sessionDir = args[++i];
   } else if (arg === '--query' && args[i + 1]) {
     query = args[++i].toLowerCase();
   } else if (arg === '--max-messages' && args[i + 1]) {
-    maxMessages = Number.parseInt(args[++i], 10);
+    maxMessages = Number(args[++i]);
   } else if (arg === '--format' && args[i + 1]) {
     format = args[++i].toLowerCase();
   } else if (arg === '--include-tool-output') {
     includeToolOutput = true;
   } else if (!arg.startsWith('-')) {
     sessionPath = arg;
+  } else {
+    console.error('Unknown option or missing option value.');
+    process.exit(1);
   }
 }
 
 function normalizeCwd(value) {
   if (!value) return '';
   return path.resolve(value.replace(/^\\\\\?\\/, '')).toLowerCase();
-}
-
-function encodeCwd(value, style) {
-  const normalized = value.replace(/^\\\\\?\\/, '');
-  if (style === 'pi') {
-    return `--${normalized.replace(/^[/\\]/, '').replace(/[/\\:]/g, '-')}--`;
-  }
-  return normalized.replace(/\//g, '-').replace(/\\/g, '-').replace(/:/g, '');
 }
 
 function statFile(fullPath) {
@@ -81,29 +83,18 @@ function walkSessionFiles(dir, out = []) {
   return out;
 }
 
-function findMostRecentSession(dir) {
-  return walkSessionFiles(dir).sort((a, b) => b.mtime - a.mtime)[0]?.path || null;
-}
-
 function readJsonlPrefix(filePath, limit = 30) {
+  let descriptor;
   try {
-    return fs.readFileSync(filePath, 'utf8').split(/\r?\n/).filter(Boolean).slice(0, limit);
+    descriptor = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(64 * 1024);
+    const length = fs.readSync(descriptor, buffer, 0, buffer.length, 0);
+    return buffer.toString('utf8', 0, length).split(/\r?\n/).filter(Boolean).slice(0, limit);
   } catch {
     return [];
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
   }
-}
-
-function codexSessionCwd(filePath) {
-  for (const line of readJsonlPrefix(filePath)) {
-    try {
-      const entry = JSON.parse(line);
-      if (entry.type === 'session_meta' && entry.payload?.cwd) return entry.payload.cwd;
-      if (entry.type === 'turn_context' && entry.payload?.cwd) return entry.payload.cwd;
-    } catch {
-      return null;
-    }
-  }
-  return null;
 }
 
 function genericSessionCwd(filePath) {
@@ -119,18 +110,6 @@ function genericSessionCwd(filePath) {
   return null;
 }
 
-function findCodexSession(targetCwd) {
-  const baseDir = path.join(os.homedir(), '.codex', 'sessions');
-  const target = normalizeCwd(targetCwd);
-  const sessions = walkSessionFiles(baseDir).filter((item) => item.path.endsWith('.jsonl')).sort((a, b) => b.mtime - a.mtime);
-
-  for (const session of sessions) {
-    const sessionCwd = codexSessionCwd(session.path);
-    if (normalizeCwd(sessionCwd) === target) return session.path;
-  }
-  return null;
-}
-
 function findBySessionDir(dir, targetCwd) {
   const target = normalizeCwd(targetCwd);
   const sessions = walkSessionFiles(dir).sort((a, b) => b.mtime - a.mtime);
@@ -140,21 +119,6 @@ function findBySessionDir(dir, targetCwd) {
     const sessionCwd = genericSessionCwd(session.path);
     if (normalizeCwd(sessionCwd) === target) return session.path;
   }
-  return sessions[0]?.path || null;
-}
-
-function autoDetectSession(targetCwd) {
-  const claudePath = path.join(os.homedir(), '.claude', 'projects', encodeCwd(targetCwd, 'claude'));
-  const claudeSession = findMostRecentSession(claudePath);
-  if (claudeSession) return { agent: 'claude', path: claudeSession };
-
-  const piPath = path.join(os.homedir(), '.pi', 'agent', 'sessions', encodeCwd(targetCwd, 'pi'));
-  const piSession = findMostRecentSession(piPath);
-  if (piSession) return { agent: 'pi', path: piSession };
-
-  const codexSession = findCodexSession(targetCwd);
-  if (codexSession) return { agent: 'codex', path: codexSession };
-
   return null;
 }
 
@@ -165,13 +129,15 @@ function inferAgent(filePath) {
   if (lower.includes(`${path.sep}.pi${path.sep}`)) return 'pi';
   if (lower.includes(`${path.sep}.hermes${path.sep}`)) return 'hermes';
   if (lower.includes('antigravity')) return 'antigravity';
+  for (const line of readJsonlPrefix(filePath)) {
+    try {
+      const entry = JSON.parse(line);
+      if (['session_meta', 'response_item', 'event_msg'].includes(entry.type)) return 'codex';
+    } catch {
+      // A partial record is reported during parsing, not used for detection.
+    }
+  }
   return 'generic';
-}
-
-function truncate(value, max = 2000) {
-  const text = String(value || '');
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}\n[... truncated ${text.length - max} chars ...]`;
 }
 
 function textFromContent(content) {
@@ -189,7 +155,12 @@ function textFromContent(content) {
 
 function pushMessage(messages, role, content, timestamp, kind = 'message') {
   if (!content || !String(content).trim()) return;
-  messages.push({ role, content: String(content), timestamp, kind });
+  const text = String(content);
+  if (role === 'user' && /^\s*(?:# AGENTS\.md instructions\b|<INSTRUCTIONS>|<skill>|<skills_instructions>|<environment_context>|<external_codex_apps_open_page>)/i.test(text)) {
+    coverage.context_messages_excluded += 1;
+    return;
+  }
+  messages.push({ role, content: text, timestamp, kind, source_line: sourceLine });
 }
 
 function parseCodexEntry(entry, messages) {
@@ -211,9 +182,9 @@ function parseCodexEntry(entry, messages) {
   } else if (payload.type === 'function_call' || payload.type === 'custom_tool_call') {
     const name = payload.name || 'tool';
     const toolArgs = payload.arguments || payload.input || '';
-    pushMessage(messages, 'tool_call', `[${name}]\n${truncate(toolArgs, 2000)}`, entry.timestamp, payload.type);
-  } else if (includeToolOutput && payload.type === 'function_call_output') {
-    pushMessage(messages, 'tool_output', truncate(payload.output || '', 3000), entry.timestamp, payload.type);
+    pushMessage(messages, 'tool_call', `[${name}]\n${toolArgs}`, entry.timestamp, payload.type);
+  } else if (includeToolOutput && ['function_call_output', 'custom_tool_call_output'].includes(payload.type)) {
+    pushMessage(messages, 'tool_output', textFromContent(payload.output || ''), entry.timestamp, payload.type);
   }
   return true;
 }
@@ -233,20 +204,21 @@ function parseGenericEntry(entry, messages) {
   }
 
   if (entry.type && entry.type.toLowerCase().includes('tool') && includeToolOutput) {
-    pushMessage(messages, 'tool', truncate(JSON.stringify(entry), 3000), entry.timestamp || entry.created_at, entry.type);
+    pushMessage(messages, 'tool', JSON.stringify(entry), entry.timestamp || entry.created_at, entry.type);
   }
 }
 
 function parseJsonl(content, parserName) {
   const messages = [];
-  for (const line of content.split(/\r?\n/)) {
+  for (const [index, line] of content.split(/\r?\n/).entries()) {
     if (!line.trim()) continue;
+    sourceLine = index + 1;
     try {
       const entry = JSON.parse(line);
       if (parserName === 'codex') parseCodexEntry(entry, messages);
       else parseGenericEntry(entry, messages);
     } catch {
-      // Ignore malformed JSONL lines.
+      coverage.parse_errors += 1;
     }
   }
   return messages;
@@ -258,6 +230,7 @@ function parseJson(content) {
   try {
     parsed = JSON.parse(content);
   } catch {
+    coverage.parse_errors += 1;
     return messages;
   }
   const entries = Array.isArray(parsed) ? parsed : parsed.messages || parsed.items || parsed.conversation || [];
@@ -270,6 +243,9 @@ function parsePlainText(content) {
 }
 
 function parseSession(filePath, parserName) {
+  const size = fs.statSync(filePath).size;
+  if (size > maxInputBytes) throw new Error('Transcript exceeds the 32 MiB size limit; supply a smaller, explicitly scoped export.');
+  coverage.input_bytes = size;
   const content = fs.readFileSync(filePath, 'utf8');
   const lower = filePath.toLowerCase();
   if (lower.endsWith('.jsonl') || lower.endsWith('.ndjson')) return parseJsonl(content, parserName);
@@ -280,38 +256,41 @@ function parseSession(filePath, parserName) {
 function resolveSession() {
   if (sessionPath) {
     if (!fs.existsSync(sessionPath)) throw new Error(`Session file not found: ${sessionPath}`);
-    return { agent: agent || inferAgent(sessionPath), path: sessionPath };
+    return { agent: agent || inferAgent(sessionPath), path: path.resolve(sessionPath) };
   }
 
   if (sessionDir) {
-    const found = findBySessionDir(sessionDir, cwd);
-    if (!found) throw new Error(`No session file found under: ${sessionDir}`);
+    const found = findBySessionDir(sessionDir, cwdSupplied ? cwd : null);
+    if (!found) throw new Error(`No session file matching the requested cwd under: ${sessionDir}`);
     return { agent: agent || inferAgent(found), path: found };
   }
 
-  if (agent === 'claude') {
-    const dir = path.join(os.homedir(), '.claude', 'projects', encodeCwd(cwd, 'claude'));
-    const found = findMostRecentSession(dir);
-    if (!found) throw new Error(`No Claude Code session found for: ${cwd}`);
-    return { agent, path: found };
-  }
+  throw new Error('Provide an explicit session file or --session-dir; implicit private-history discovery is disabled.');
+}
 
-  if (agent === 'pi') {
-    const dir = path.join(os.homedir(), '.pi', 'agent', 'sessions', encodeCwd(cwd, 'pi'));
-    const found = findMostRecentSession(dir);
-    if (!found) throw new Error(`No Pi session found for: ${cwd}`);
-    return { agent, path: found };
+function removeMirrors(messages) {
+  const result = [];
+  const pending = new Map();
+  for (const message of messages) {
+    if (!['user', 'assistant'].includes(message.role)) {
+      result.push(message);
+      continue;
+    }
+    const key = `${message.role}:${message.content}`;
+    const previous = pending.get(key);
+    const opposite = previous && previous.message.kind.startsWith('event:') !== message.kind.startsWith('event:');
+    const elapsed = previous ? Math.abs(Date.parse(message.timestamp) - Date.parse(previous.message.timestamp)) : NaN;
+    if (opposite && message.source_line - previous.message.source_line <= 8 && elapsed <= 5000) {
+      // Retain the actual response item and never merge two genuine user turns.
+      if (previous.message.kind.startsWith('event:')) result[previous.index] = message;
+      pending.delete(key);
+      coverage.mirrored_messages_removed += 1;
+      continue;
+    }
+    pending.set(key, { message, index: result.length });
+    result.push(message);
   }
-
-  if (agent === 'codex') {
-    const found = findCodexSession(cwd);
-    if (!found) throw new Error(`No Codex session found for: ${cwd}`);
-    return { agent, path: found };
-  }
-
-  const detected = autoDetectSession(cwd);
-  if (!detected) throw new Error(`No session found for: ${cwd}`);
-  return detected;
+  return result;
 }
 
 function filterMessages(messages) {
@@ -319,12 +298,15 @@ function filterMessages(messages) {
   if (query) {
     filtered = filtered.filter((msg) => msg.content.toLowerCase().includes(query));
   }
+  coverage.query_filtered_messages = messages.length - filtered.length;
+  coverage.truncated_messages = Math.max(0, filtered.length - maxMessages);
+  coverage.complete = !coverage.parse_errors && !coverage.query_filtered_messages && !coverage.truncated_messages;
   return filtered.slice(-maxMessages);
 }
 
 function formatTranscript(result, messages, totalCount) {
   if (format === 'json') {
-    return JSON.stringify({ ...result, messages, totalCount, shown: messages.length }, null, 2);
+    return JSON.stringify({ ...result, messages, totalCount, shown: messages.length, coverage }, null, 2);
   }
 
   const lines = [
@@ -333,12 +315,13 @@ function formatTranscript(result, messages, totalCount) {
     `File: ${result.path}`,
     `Messages: ${totalCount}`,
     `Shown: ${messages.length}`,
+    `Coverage: ${JSON.stringify(coverage)}`,
     '',
   ];
 
   for (const msg of messages) {
     const label = msg.kind === 'message' ? msg.role : `${msg.role} ${msg.kind}`;
-    lines.push(`\n### ${label.toUpperCase()} ${msg.timestamp || ''}\n`);
+    lines.push(`\n### ${label.toUpperCase()} ${msg.timestamp || ''} (line ${msg.source_line || 'unknown'})\n`);
     lines.push(msg.content);
   }
 
@@ -346,7 +329,7 @@ function formatTranscript(result, messages, totalCount) {
 }
 
 function main() {
-  if (!Number.isFinite(maxMessages) || maxMessages < 1) {
+  if (!Number.isSafeInteger(maxMessages) || maxMessages < 1) {
     throw new Error('--max-messages must be a positive integer');
   }
   if (!['markdown', 'json'].includes(format)) {
@@ -355,7 +338,8 @@ function main() {
 
   const result = resolveSession();
   const parserName = result.agent === 'codex' ? 'codex' : 'generic';
-  const messages = parseSession(result.path, parserName);
+  const parsed = parseSession(result.path, parserName);
+  const messages = parserName === 'codex' ? removeMirrors(parsed) : parsed;
   const shown = filterMessages(messages);
   console.log(formatTranscript(result, shown, messages.length));
 }

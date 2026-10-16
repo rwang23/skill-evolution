@@ -13,12 +13,18 @@ let stdoutJson = false;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
-  if (arg === '--proposal' && args[index + 1]) {
+  if (arg === '--help' || arg === '-h') {
+    console.log('Usage: node validate-skill-package.js <skill-directory> [--proposal <proposal.json>] [--json]');
+    process.exit(0);
+  } else if (arg === '--proposal' && args[index + 1]) {
     proposalPath = path.resolve(args[++index]);
   } else if (arg === '--json' || arg === '--stdout-json') {
     stdoutJson = true;
   } else if (!arg.startsWith('-')) {
     skillDir = path.resolve(arg);
+  } else {
+    console.error('Unknown option or missing option value.');
+    process.exit(1);
   }
 }
 
@@ -130,8 +136,7 @@ function validateLinks() {
   }
 }
 
-function validateRuntimeText() {
-  const files = walk(skillDir).filter((file) => /\.(?:md|js|json|yaml|yml|txt)$/i.test(file));
+function validateSensitiveText(content, filePath) {
   const secrets = [
     /\bsk-[a-z0-9_-]{16,}\b/i,
     /\bgh[pousr]_[A-Za-z0-9]{20,}\b/,
@@ -139,19 +144,21 @@ function validateRuntimeText() {
     /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
   ];
   const privatePaths = [/C:\\Users\\[^\\\s"`]+/i, /\/(?:Users|home)\/[^/\s"`]+/];
-  for (const filePath of files) {
-    const content = read(filePath);
-    if (secrets.some((pattern) => pattern.test(content))) {
-      add('SE-P1', 'error', 'Credential-shaped literal found; matched value suppressed.', filePath);
-    }
-    for (const pattern of privatePaths) {
-      const match = content.match(pattern);
-      if (match && !/[<$%]/.test(match[0])) {
-        add('SE-P1', 'error', 'Private user path found in a shareable package.', filePath);
-        break;
-      }
+  if (secrets.some((pattern) => pattern.test(content))) {
+    add('SE-P1', 'error', 'Credential-shaped literal found; matched value suppressed.', filePath);
+  }
+  for (const pattern of privatePaths) {
+    const match = content.match(pattern);
+    if (match && !/[<$%]/.test(match[0])) {
+      add('SE-P1', 'error', 'Private user path found in a shareable artifact.', filePath);
+      break;
     }
   }
+}
+
+function validateRuntimeText() {
+  const files = walk(skillDir).filter((file) => /\.(?:md|js|json|yaml|yml|txt)$/i.test(file));
+  for (const filePath of files) validateSensitiveText(read(filePath), filePath);
 }
 
 function validateInterface() {
@@ -235,6 +242,11 @@ function validateProposal() {
     add('SE-A1', 'error', `Cannot read proposal JSON: ${error.message}`, proposalPath);
     return;
   }
+  if (!proposal || typeof proposal !== 'object' || Array.isArray(proposal)) {
+    add('SE-E1', 'error', 'Proposal must be a JSON object.', proposalPath);
+    return;
+  }
+  validateSensitiveText(JSON.stringify(proposal).replace(/\\\\/g, '\\'), proposalPath);
   if (proposal.schema_version !== 2 || proposal.artifact_type !== 'skill-evolution-proposal') {
     add('SE-A1', 'error', 'Proposal must use schema_version 2 and the skill-evolution-proposal artifact type.', proposalPath);
   }
@@ -250,24 +262,44 @@ function validateProposal() {
   if (!proposal.signal_assessment || !Array.isArray(proposal.evidence) || !proposal.validation) {
     add('SE-E1', 'error', 'Proposal is missing signal assessment, evidence, or validation.', proposalPath);
   }
+  if (!proposal.target || !proposal.maturity_impact?.decision || !Array.isArray(proposal.validation?.required) || !proposal.validation.required.length) {
+    add('SE-M1', 'error', 'Proposal must declare target, maturity impact, and required validation.', proposalPath);
+  }
+  const evidence = Array.isArray(proposal.evidence) ? proposal.evidence : [];
+  const evidenceIds = new Set();
+  for (const item of evidence) {
+    if (!item || typeof item.id !== 'string' || !item.id.trim() || evidenceIds.has(item.id) || typeof item.excerpt !== 'string' || !item.excerpt.trim()) {
+      add('SE-E1', 'error', 'Evidence must have unique non-empty IDs and source excerpts.', proposalPath);
+    } else evidenceIds.add(item.id);
+  }
   if (proposal.status === 'proposal') {
     if (!Array.isArray(proposal.candidates) || proposal.candidates.length < 2) {
       add('SE-C1', 'error', 'A proposal must compare at least two candidates.', proposalPath);
     }
-    if (!proposal.recommended_candidate) {
-      add('SE-C1', 'error', 'A proposal must identify a recommended candidate.', proposalPath);
+    const candidates = Array.isArray(proposal.candidates) ? proposal.candidates : [];
+    const candidateIds = new Set();
+    if (!candidates.some((item) => item?.id === proposal.recommended_candidate)) {
+      add('SE-C1', 'error', 'The recommended candidate must exist in the candidate list.', proposalPath);
     }
-    const evidenceIds = new Set((proposal.evidence || []).map((item) => item.id));
-    for (const candidate of proposal.candidates || []) {
-      if (!Array.isArray(candidate.evidence_ids) || candidate.evidence_ids.some((id) => !evidenceIds.has(id))) {
+    if (!evidenceIds.size) add('SE-E1', 'error', 'A proposal must cite at least one evidence excerpt.', proposalPath);
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object') {
+        add('SE-C1', 'error', 'Candidate must be an object.', proposalPath);
+        continue;
+      }
+      if (typeof candidate.id !== 'string' || !candidate.id.trim() || candidateIds.has(candidate.id)) {
+        add('SE-C1', 'error', 'Candidate IDs must be unique and non-empty.', proposalPath);
+      }
+      candidateIds.add(candidate.id);
+      if (!Array.isArray(candidate.evidence_ids) || !candidate.evidence_ids.length || candidate.evidence_ids.some((id) => !evidenceIds.has(id))) {
         add('SE-E1', 'error', `Candidate '${candidate.id || 'unknown'}' has invalid evidence references.`, proposalPath);
       }
       if (!Array.isArray(candidate.validation) || !candidate.validation.length) {
         add('SE-V1', 'error', `Candidate '${candidate.id || 'unknown'}' lacks validation expectations.`, proposalPath);
       }
     }
-  } else if (Array.isArray(proposal.candidates) && proposal.candidates.length) {
-    add('SE-G1', 'error', 'A no-candidate artifact must not contain change candidates.', proposalPath);
+  } else if (!Array.isArray(proposal.candidates) || proposal.candidates.length || proposal.recommended_candidate !== null) {
+    add('SE-G1', 'error', 'A no-candidate artifact must have an empty candidate list and null recommendation.', proposalPath);
   }
 }
 
@@ -277,13 +309,16 @@ if (!fs.existsSync(skillDir) || !fs.statSync(skillDir).isDirectory()) {
 }
 
 validateSkillMd();
-validateLinks();
-validateRuntimeText();
-validateInterface();
-validateEvals();
-validateContract();
-validateScripts();
-validateProposal();
+// A non-package directory is not permission to scan its other files.
+if (fs.existsSync(path.join(skillDir, 'SKILL.md'))) {
+  validateLinks();
+  validateRuntimeText();
+  validateInterface();
+  validateEvals();
+  validateContract();
+  validateScripts();
+  validateProposal();
+}
 
 const errors = findings.filter((item) => item.severity === 'error').length;
 const warnings = findings.filter((item) => item.severity === 'warning').length;

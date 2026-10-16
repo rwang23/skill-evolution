@@ -66,6 +66,10 @@ node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
 
 The generator writes JSON and Markdown. Its deterministic signal score organizes evidence, but it does not establish that a lesson generalizes. A reviewer still checks the cited excerpts and target context.
 
+Pass an explicit transcript file or `--session-dir`. Codex JSONL exports are detected from their records, including exports outside the Codex home folder. Known injected instruction wrappers are excluded and paired event/response mirrors are counted once. `--session-dir --cwd <project>` fails if no session matches that project.
+
+The extractor rejects inputs above 32 MiB and reports source lines, malformed records, excluded context, query filtering, and truncation. Create a smaller scoped export for a larger session. Extractor output is raw private evidence; generated proposal excerpts are redacted before truncation. Keyword mentions, assistant assertions, and isolated errors produce no candidate without corroborated user feedback. The screening remains heuristic and generalization remains unreviewed.
+
 An external JSON audit can be attached as optional evidence:
 
 ```powershell
@@ -88,6 +92,10 @@ Every version 2 artifact contains:
 - `approval.required: true`, `approval.status: "pending"`, and `apply_plan: null`.
 
 The default recommendation is regression-first because it makes the observed miss reproducible before a broader behavior change. A human or separately authorized workflow may choose another candidate after reviewing the source evidence.
+
+For material changes, compare baseline and candidate on the same task, retain a held-out case, and distinguish task quality, triggering, instruction compliance, and cost. Include a no-Skill control when claiming capability uplift. An optional SkillQC score measures package quality; it cannot prove task improvement. See [the comparison protocol](references/evolution-loop.md#comparison-before-recommendation).
+
+Existing version 2 artifacts remain readable. New coverage and provenance fields are additive; validation now rejects empty or duplicate evidence/candidate IDs and recommendations that do not name a candidate. Older wrappers that relied on implicit home-directory discovery must pass a session path or directory explicitly.
 
 ## Validate
 

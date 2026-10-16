@@ -2,6 +2,16 @@
 
 Use this reference when you need the rationale behind the skill design or when refreshing the research.
 
+## Review on 2026-10-15
+
+The following primary sources informed the comparison protocol; they are design references, not evidence that this package improves outcomes:
+
+- [Anthropic: test, measure, and refine Agent Skills](https://claude.com/resources/articles/improving-skill-creator-test-measure-and-refine-agent-skills) (2026-03-03): compare Skill variants or Skill versus no Skill, separate capability uplift from encoded preferences, and measure trigger behavior and cost alongside task quality.
+- [OpenAI: Testing Agent Skills Systematically with Evals](https://developers.openai.com/blog/eval-skills) (2026-01-22): capture traces and artifacts, then check observable behavior; let actual failures determine the next regression case.
+- [Microsoft Waza](https://github.com/microsoft/waza) (repository reviewed on 2026-10-15): keep spec/artifact checks distinct from skill evaluation and comparisons across models.
+
+Applied here: stronger transcript fidelity, explicit evidence limits, and a small baseline/candidate comparison. No benchmark runner, automatic mutation, global hook, or external dependency is added.
+
 ## Source Map
 
 | Source | Useful lesson |

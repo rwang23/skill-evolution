@@ -15,8 +15,9 @@ const { spawnSync } = require('child_process');
 const args = process.argv.slice(2);
 let sessionPath = null;
 let sessionDir = null;
-let agent = 'generic';
+let agent = null;
 let cwd = process.cwd();
+let cwdSupplied = false;
 let targetSkillDir = null;
 let baselineReport = null;
 let outputDir = path.join(os.homedir(), '.agent-skill-evolution', 'proposals');
@@ -28,10 +29,14 @@ let redactPaths = true;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
-  if (arg === '--agent' && args[index + 1]) {
+  if (arg === '--help' || arg === '-h') {
+    console.log('Usage: node propose-skill-evolution.js <session-file> [--target-skill-dir <directory>] [--baseline-report <audit.json>] [--output-dir <directory>]\nOr: --session-dir <directory> [--cwd <project>]');
+    process.exit(0);
+  } else if (arg === '--agent' && args[index + 1]) {
     agent = args[++index];
   } else if (arg === '--cwd' && args[index + 1]) {
     cwd = args[++index];
+    cwdSupplied = true;
   } else if (arg === '--session-dir' && args[index + 1]) {
     sessionDir = args[++index];
   } else if ((arg === '--target-skill-dir' || arg === '--skill-dir') && args[index + 1]) {
@@ -41,9 +46,9 @@ for (let index = 0; index < args.length; index += 1) {
   } else if (arg === '--output-dir' && args[index + 1]) {
     outputDir = args[++index];
   } else if (arg === '--min-tool-calls' && args[index + 1]) {
-    minToolCalls = Number.parseInt(args[++index], 10);
+    minToolCalls = Number(args[++index]);
   } else if (arg === '--min-signal-score' && args[index + 1]) {
-    minSignalScore = Number.parseInt(args[++index], 10);
+    minSignalScore = Number(args[++index]);
   } else if (arg === '--query' && args[index + 1]) {
     query = args[++index];
   } else if (arg === '--include-system') {
@@ -52,6 +57,8 @@ for (let index = 0; index < args.length; index += 1) {
     redactPaths = false;
   } else if (!arg.startsWith('-')) {
     sessionPath = arg;
+  } else {
+    die('Unknown option or missing option value.');
   }
 }
 
@@ -90,21 +97,20 @@ function runExtractor() {
   if (!fs.existsSync(extractor)) die(`Missing bundled extractor: ${extractor}`);
   const commandArgs = [
     extractor,
-    '--agent',
-    agent,
-    '--cwd',
-    cwd,
     '--format',
     'json',
     '--include-tool-output',
     '--max-messages',
     '500',
   ];
+  if (agent) commandArgs.push('--agent', agent);
+  if (cwdSupplied) commandArgs.push('--cwd', cwd);
   if (sessionPath) commandArgs.splice(1, 0, sessionPath);
   if (sessionDir) commandArgs.push('--session-dir', sessionDir);
   if (query) commandArgs.push('--query', query);
 
-  const result = spawnSync(process.execPath, commandArgs, { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, commandArgs, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (result.error) die(`Extractor failed: ${result.error.code || 'unknown error'}; use a smaller focused export.`);
   if (result.status !== 0) die(`Extractor failed:\n${result.stderr || result.stdout}`);
   try {
     return JSON.parse(result.stdout);
@@ -119,7 +125,7 @@ function matchesAny(text, patterns) {
 
 function analyze(messages) {
   const patterns = {
-    correction: [/\bwrong\b/i, /you missed/i, /should have/i, /not what i asked/i, /不是/, /不对/, /遗漏/, /应该/, /纠正/],
+    correction: [/\byou (?:missed|skipped|forgot|used the wrong)\b/i, /\b(?:routing|skill|workflow|output) (?:was|is) wrong\b/i, /\byou should have\b/i, /not what i asked/i, /(?:你|刚才|上次|这次|又).{0,40}(?:不对|错了|选错|遗漏|漏掉)/, /不是.{0,20}(?:我让|我要|我说|要求)/],
     error: [/\berror\b/i, /\bfailed\b/i, /exception/i, /traceback/i, /denied/i, /失败/, /报错/, /错误/],
     routing: [/routing/i, /trigger/i, /should[_ -]?trigger/i, /wrong skill/i, /路由/, /触发/, /选错.*skill/i],
     workflow: [/repeat(?:ed|ing)?/i, /recurr/i, /workflow/i, /regression/i, /skill/i, /harness/i, /重复/, /流程/, /回归/, /技能/, /进化/],
@@ -134,11 +140,12 @@ function analyze(messages) {
   };
   const evidence = [];
   const seen = new Set();
+  let repeatedCorrection = false;
 
   function capture(type, message) {
-    if (evidence.length >= 16) return;
-    const excerpt = redact(String(message.content || '').slice(0, 600));
-    const fingerprint = `${type}:${excerpt}`;
+    // Redact the full message before truncating so a boundary cannot expose a token prefix.
+    const excerpt = redact(String(message.content || '')).slice(0, 600);
+    const fingerprint = `${type}:${message.source_line}:${message.timestamp}:${excerpt}`;
     if (!excerpt || seen.has(fingerprint)) return;
     seen.add(fingerprint);
     evidence.push({
@@ -146,31 +153,34 @@ function analyze(messages) {
       type,
       role: message.role || 'unknown',
       timestamp: message.timestamp || null,
+      source_line: message.source_line || null,
       excerpt,
       source: 'session',
+      classification: 'heuristic; review source context',
     });
   }
 
   for (const message of messages) {
     if (!includeSystem && ['system', 'developer'].includes(message.role)) continue;
     const text = String(message.content || '');
-    if (message.role === 'tool_call' || /tool_call/i.test(message.kind || '')) counts.toolCalls += 1;
-    if (message.role === 'tool_output' || /tool_output/i.test(message.kind || '')) counts.toolOutputs += 1;
-    if (message.role === 'user' && matchesAny(text, patterns.correction)) {
+    if (message.role === 'tool_call') counts.toolCalls += 1;
+    if (message.role === 'tool_output') counts.toolOutputs += 1;
+    const isCorrection = message.role === 'user' && matchesAny(text, patterns.correction);
+    const isFailure = message.role === 'tool_output' && matchesAny(text, patterns.error);
+    if (isCorrection) {
       counts.userCorrections += 1;
+      if (/\bagain\b|repeat(?:ed|ing)?|recurr|再次|又|反复|重复|每次/i.test(text)) repeatedCorrection = true;
       capture('user-correction', message);
     }
-    if (matchesAny(text, patterns.error)) {
+    if (isFailure) {
       counts.errorSignals += 1;
       capture('error-signal', message);
     }
-    if (matchesAny(text, patterns.routing)) {
+    if ((isCorrection || isFailure) && matchesAny(text, patterns.routing)) {
       counts.routingSignals += 1;
-      capture('routing-signal', message);
     }
     if (matchesAny(text, patterns.workflow)) {
       counts.workflowSignals += 1;
-      capture('workflow-signal', message);
     }
   }
 
@@ -178,20 +188,17 @@ function analyze(messages) {
   if (counts.toolCalls >= minToolCalls) score += 1;
   score += Math.min(counts.userCorrections * 4, 12);
   score += Math.min(counts.errorSignals * 2, 6);
-  score += Math.min(counts.routingSignals * 2, 6);
-  score += Math.min(counts.workflowSignals, 4);
-
-  const strongEvidence =
-    counts.userCorrections > 0 ||
-    counts.errorSignals > 0 ||
-    counts.routingSignals > 0 ||
-    counts.workflowSignals >= 2;
+  const strongEvidence = counts.userCorrections > 0 &&
+    (repeatedCorrection || counts.userCorrections >= 2 || counts.errorSignals > 0);
   const triggers = [];
   if (counts.userCorrections) triggers.push(`user corrections: ${counts.userCorrections}`);
   if (counts.errorSignals) triggers.push(`error or dead-end signals: ${counts.errorSignals}`);
-  if (counts.routingSignals) triggers.push(`routing signals: ${counts.routingSignals}`);
-  if (counts.workflowSignals >= 2) triggers.push(`repeated workflow signals: ${counts.workflowSignals}`);
+  if (repeatedCorrection) triggers.push('User feedback describes recurrence; independent sessions still require review.');
   if (counts.toolCalls >= minToolCalls) triggers.push(`complex task: ${counts.toolCalls} tool calls`);
+  const selectedEvidence = evidence
+    .sort((left, right) => Number(right.type === 'user-correction') - Number(left.type === 'user-correction'))
+    .slice(0, 16)
+    .map((item, index) => ({ ...item, id: `E${String(index + 1).padStart(2, '0')}` }));
   return {
     score,
     threshold: minSignalScore,
@@ -199,7 +206,8 @@ function analyze(messages) {
     decision: score >= minSignalScore && strongEvidence ? 'proposal' : 'no-candidate',
     triggers,
     counts,
-    evidence,
+    evidence: selectedEvidence,
+    evidenceOmitted: Math.max(0, evidence.length - selectedEvidence.length),
   };
 }
 
@@ -210,10 +218,11 @@ function targetNameFromDir(value) {
 
 function inferTargetNames(messages) {
   const names = new Set();
-  if (targetSkillDir) names.add(targetNameFromDir(targetSkillDir));
+  if (targetSkillDir) return [targetNameFromDir(targetSkillDir)];
   for (const message of messages) {
-    const text = String(message.content || '');
-    const matches = text.match(/\$?[a-z0-9]+(?:-[a-z0-9]+)+/gi) || [];
+    if (message.role !== 'user') continue;
+    const text = redact(message.content);
+    const matches = text.match(/\$[a-z0-9]+(?:-[a-z0-9]+)+/gi) || [];
     for (const match of matches) {
       const name = match.replace(/^\$/, '').toLowerCase();
       if (name.length <= 64) names.add(name);
@@ -231,14 +240,17 @@ function readBaseline() {
   } catch (error) {
     die(`Cannot read --baseline-report as JSON: ${error.message}`);
   }
-  const score = payload.total_score ?? payload.score ?? payload.summary?.average_score ?? null;
-  const status = payload.status ?? payload.verdict ?? payload.summary?.status ?? null;
+  const score = payload.total_score ?? payload.score ?? payload.summary?.quality_score ?? payload.summary?.average_score ?? null;
+  const status = payload.status ?? payload.verdict ?? payload.summary?.gate_status ?? payload.summary?.status ?? null;
   return {
     supplied: true,
     path: redact(resolved),
-    status: typeof status === 'string' ? status : null,
+    status: typeof status === 'string' ? redact(status) : null,
     score: typeof score === 'number' ? score : null,
-    note: 'Optional external evidence; it does not grant apply authority.',
+    evidence_grade: typeof payload.evidence?.grade === 'string' ? redact(payload.evidence.grade) : null,
+    rubric_version: typeof payload.rubric_version === 'string' ? redact(payload.rubric_version) : null,
+    revision_verified: false,
+    note: 'Optional external evidence; target revision was not verified. Artifact score and evidence grade do not establish effectiveness or grant apply authority.',
   };
 }
 
@@ -302,21 +314,25 @@ function buildProposal(transcript, analysis, baseline) {
     mode: 'proposal-only',
     created_at: createdAt,
     source: {
-      agent,
+      agent: transcript.agent,
       cwd: redact(path.resolve(cwd)),
       transcript: redact(transcript.path),
       baseline_report: baseline,
+      coverage: transcript.coverage,
     },
     signal_assessment: {
       score: analysis.score,
       threshold: analysis.threshold,
       strong_evidence: analysis.strongEvidence,
+      evidence_basis: 'heuristic screening, not verified incident counts',
+      generalization_status: 'unreviewed',
       triggers: analysis.triggers,
       counts: analysis.counts,
+      evidence_excerpts_omitted: analysis.evidenceOmitted,
       reason:
         status === 'proposal'
           ? 'The signal threshold and strong-evidence condition were met; human review must still test generalization.'
-          : 'The current evidence does not meet both the deterministic threshold and strong-evidence condition.',
+          : 'No sufficiently corroborated user correction was found. Keywords, assistant assertions, and isolated tool errors do not establish a reusable lesson.',
     },
     target: {
       skill_dir: targetSkillDir ? redact(path.resolve(targetSkillDir)) : null,
@@ -335,7 +351,7 @@ function buildProposal(transcript, analysis, baseline) {
     validation: {
       package: 'node <skill-root>/scripts/validate-skill-package.js <skill-root>',
       proposal: 'node <skill-root>/scripts/validate-skill-package.js <skill-root> --proposal <proposal.json>',
-      required: ['Review every evidence excerpt in its source context.', 'Run a target-specific regression check before any later edit.'],
+      required: ['Review every evidence excerpt in its source context and inspect coverage gaps.', 'Compare baseline and candidate on the same task; keep held-out tasks separate.', 'Run a target-specific regression check before any later edit.'],
     },
     approval: {
       required: true,
@@ -368,7 +384,7 @@ function markdownFor(proposal) {
   lines.push('## Evidence', '');
   if (!proposal.evidence.length) lines.push('- No qualifying evidence excerpt was captured.', '');
   for (const item of proposal.evidence) {
-    lines.push(`### ${item.id}: ${item.type}`, '', '```text', item.excerpt, '```', '');
+    lines.push(`### ${item.id}: ${item.type}`, '', `Source line: ${item.source_line || 'unavailable'}; ${item.classification}`, '', '```text', item.excerpt, '```', '');
   }
   lines.push('## Candidates', '');
   if (!proposal.candidates.length) {
@@ -388,10 +404,17 @@ function markdownFor(proposal) {
     );
   }
   lines.push(
+    '## Coverage and validation',
+    '',
+    `Coverage: ${JSON.stringify(proposal.source.coverage)}`,
+    'Generalization: unreviewed. Signal counts are heuristic screening, not independent incidents.',
+    '',
+    ...proposal.validation.required.map((item) => `- ${item}`),
+    '',
     '## Review boundary',
     '',
     `Recommended candidate: ${proposal.recommended_candidate || 'none'}`,
-    'No files were changed. apply_plan remains null until a separately authorized workflow acts on an accepted proposal.',
+    'The target package was not changed. apply_plan remains null; implementation belongs to a separately authorized workflow.',
     '',
   );
   return `${lines.join('\n')}\n`;
@@ -400,7 +423,7 @@ function markdownFor(proposal) {
 function writeProposal(transcript, analysis, baseline) {
   fs.mkdirSync(outputDir, { recursive: true });
   const proposal = buildProposal(transcript, analysis, baseline);
-  const base = path.join(outputDir, `${timestampSlug(proposal.created_at)}-${agent}-skill-evolution`);
+  const base = path.join(outputDir, `${timestampSlug(proposal.created_at)}-${transcript.agent}-skill-evolution`);
   const jsonPath = `${base}.json`;
   const markdownPath = `${base}.md`;
   fs.writeFileSync(jsonPath, `${JSON.stringify(proposal, null, 2)}\n`, 'utf8');
@@ -408,8 +431,9 @@ function writeProposal(transcript, analysis, baseline) {
   return { proposal, jsonPath, markdownPath };
 }
 
-if (!Number.isFinite(minToolCalls) || minToolCalls < 1) die('--min-tool-calls must be a positive integer');
-if (!Number.isFinite(minSignalScore) || minSignalScore < 1) die('--min-signal-score must be a positive integer');
+if (!Number.isSafeInteger(minToolCalls) || minToolCalls < 1) die('--min-tool-calls must be a positive integer');
+if (!Number.isSafeInteger(minSignalScore) || minSignalScore < 1) die('--min-signal-score must be a positive integer');
+if (agent && !['generic', 'codex', 'claude', 'pi', 'hermes', 'antigravity'].includes(agent)) die('Unsupported --agent value');
 
 const transcript = runExtractor();
 const analysis = analyze(transcript.messages || []);

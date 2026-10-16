@@ -2,7 +2,7 @@
 
 ## Project snapshot
 
-- Last reviewed: 2026-08-12
+- Last reviewed: 2026-10-15
 - Project root: `<PROJECT_ROOT>`
 - Project: `skill-evolution`
 - Purpose: convert repeated agent behavior and user feedback into reviewable, proposal-only Skill or harness improvements.
@@ -18,6 +18,7 @@
 - Proposal artifacts remain read-only with `approval.required: true`, `approval.status: "pending"`, and `apply_plan: null`.
 - The package runs without SkillQC, Agent Skill Creator, platform-managed Skill Creator, or private user configuration.
 - Signal scoring organizes evidence. It does not prove generalization or grant apply authority.
+- Transcript selection is explicit; extraction reports provenance and coverage, excludes known runtime wrappers, and deduplicates Codex mirrors. Screening is heuristic and does not count independent incidents.
 
 ## Read first
 

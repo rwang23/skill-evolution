@@ -25,7 +25,11 @@ Failure of `SE-A1` or `SE-P1` blocks the artifact. The other failures require re
 
 ## Signal decision
 
-The bundled generator uses a deterministic signal score to organize evidence, not to decide truth. Direct user corrections carry more weight than generic workflow words. A score above the configured threshold permits proposal generation, but a reviewer must still test `SE-E1` and `SE-G1`.
+The bundled generator uses a deterministic signal score for screening. A draft requires a detected user correction plus recurrence language, another correction, or a tool-output error. Generic workflow/routing words, assistant assertions, tool-call arguments, and isolated errors cannot establish a reusable lesson. These are lexical heuristics with false positives and false negatives; `generalization_status` remains `unreviewed` even when a draft is generated. A reviewer must still test `SE-E1` and `SE-G1`.
+
+Count independent incidents by source session and task context, not messages or signal labels. A mirrored Codex event and response item are one message. Injected Skill descriptions, AGENTS instructions, and page-context wrappers are not user feedback. An index or weekly summary is a lead; if its raw source cannot be read, record that limitation instead of claiming a reproduced incident.
+
+Extraction requires an explicit file or directory. With `--session-dir --cwd`, no matching metadata means failure, never fallback to another project. Inputs larger than 32 MiB require a smaller scoped export. Coverage discloses malformed records, excluded context, removed mirrors, query filtering, and omitted messages. Incomplete coverage must stay visible in the proposal. Only generated proposals are redacted; extractor output remains private evidence.
 
 Strong evidence includes:
 
@@ -50,6 +54,8 @@ The machine-readable artifact uses `schema_version: 2` and contains:
 - `validation`, `approval`, and `apply_plan: null`.
 
 A candidate contains an ID, label, target surface, intended behavior, rationale, evidence IDs, validation expectations, risk, and tradeoff. The proposal may describe an intended diff, but must not contain an executable apply plan.
+
+Version 2 remains the artifact schema. Source-line pointers, `source.coverage`, and heuristic/generalization labels are additive fields; older artifacts without them remain valid. Validation now enforces the existing contract: evidence IDs and candidate IDs are unique, every candidate cites non-empty existing evidence, the recommendation names an existing candidate, and target, maturity impact, and validation are present. A no-candidate artifact has an empty candidate list and null recommendation. The same credential-pattern and private-user-path checks apply to packages and proposal artifacts; they do not replace a sensitive-content review.
 
 ## Maturity vocabulary
 

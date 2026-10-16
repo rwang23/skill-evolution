@@ -66,6 +66,10 @@ node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
 
 生成器使用确定性信号分数整理证据。这个分数不能证明经验已经具有普适性，审阅者仍需回到原始上下文检查引用和目标文件。
 
+调用时必须传入具体会话文件或 `--session-dir`。提取器会根据记录识别 Codex JSONL，包括导出到其他目录的文件；已知的注入指令包装会被排除，同一消息的 event/response 副本只计一次。使用 `--session-dir --cwd <project>` 时，找不到匹配项目就会停止，不会改读其他项目。
+
+单个输入上限为 32 MiB，更大的会话需要先导出与问题有关的片段。结果会保留来源行号，并说明解析错误、上下文排除、查询过滤和截断情况。提取器输出仍是私有原文；提案中的摘录会先脱敏，再截短。普通关键词、助手自述或一次孤立报错不足以生成改进候选。这些判断仍是启发式筛选，经验是否通用需要人工核查。
+
 也可以附加一份通用 JSON 审计作为可选证据：
 
 ```powershell
@@ -88,6 +92,10 @@ node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
 - `approval.required: true`、`approval.status: "pending"` 和 `apply_plan: null`。
 
 默认推荐先补回归用例，因为它能在扩大修改前复现已经观察到的问题。审阅者或另一个获得明确授权的工作流可以在核对原始证据后选择其他方案。
+
+修改影响较大时，用同一任务比较基线和候选版本，另留一个未参与修改的案例。分别检查任务结果、触发是否准确、指令是否被遵守，以及实际可测的成本。如果声称 Skill 能增加模型能力，还应加入不加载 Skill 的对照。SkillQC 分数衡量包质量，不能证明任务效果变好，详见[比较方法](references/evolution-loop.md#comparison-before-recommendation)。
+
+提案仍使用 version 2，来源和覆盖字段均为新增的可选信息。验证器会拒绝空白或重复的证据/候选标识，以及指向不存在候选的推荐。旧包装脚本若依赖自动搜索用户目录，需要改为明确传入会话文件或目录。
 
 ## 验证
 
