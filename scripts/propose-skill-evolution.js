@@ -166,7 +166,7 @@ function analyze(messages) {
     if (message.role === 'tool_call') counts.toolCalls += 1;
     if (message.role === 'tool_output') counts.toolOutputs += 1;
     const isCorrection = message.role === 'user' && matchesAny(text, patterns.correction);
-    const isFailure = message.role === 'tool_output' && matchesAny(text, patterns.error);
+    const isFailure = message.role === 'tool_output' && (message.kind === 'tool_result_error' || matchesAny(text, patterns.error));
     if (isCorrection) {
       counts.userCorrections += 1;
       if (/\bagain\b|repeat(?:ed|ing)?|recurr|再次|又|反复|重复|每次/i.test(text)) repeatedCorrection = true;

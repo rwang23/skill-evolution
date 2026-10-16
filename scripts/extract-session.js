@@ -190,22 +190,49 @@ function parseCodexEntry(entry, messages) {
 }
 
 function parseGenericEntry(entry, messages) {
+  if (entry.isMeta === true || entry.isCompactSummary === true) {
+    coverage.context_messages_excluded += 1;
+    return;
+  }
   const message = entry.message || entry.payload?.message || entry.response || entry.request;
   if (message?.role) {
-    pushMessage(messages, message.role, textFromContent(message.content || message.text), entry.timestamp || entry.created_at);
+    pushStructuredMessage(messages, message.role, message.content || message.text, entry.timestamp || entry.created_at);
     return;
   }
 
   const role = entry.role || entry.author?.role || entry.payload?.role;
   const content = entry.content || entry.text || entry.message || entry.payload?.content || entry.payload?.text;
   if (role && content) {
-    pushMessage(messages, role, textFromContent(content), entry.timestamp || entry.created_at);
+    pushStructuredMessage(messages, role, content, entry.timestamp || entry.created_at);
     return;
   }
 
   if (entry.type && entry.type.toLowerCase().includes('tool') && includeToolOutput) {
     pushMessage(messages, 'tool', JSON.stringify(entry), entry.timestamp || entry.created_at, entry.type);
   }
+}
+
+function pushStructuredMessage(messages, role, content, timestamp) {
+  if (!Array.isArray(content)) {
+    pushMessage(messages, role, textFromContent(content), timestamp);
+    return;
+  }
+  let text = [];
+  function flush() {
+    pushMessage(messages, role, text.join('\n'), timestamp);
+    text = [];
+  }
+  for (const block of content) {
+    if (typeof block === 'string') text.push(block);
+    else if (block.type === 'tool_use') {
+      flush();
+      pushMessage(messages, 'tool_call', `[${block.name || 'tool'}]\n${JSON.stringify(block.input || {})}`, timestamp, 'tool_use');
+    } else if (block.type === 'tool_result') {
+      flush();
+      if (includeToolOutput) pushMessage(messages, 'tool_output', textFromContent(block.content), timestamp, block.is_error ? 'tool_result_error' : 'tool_result');
+    } else if (block.text) text.push(block.text);
+  }
+  flush();
 }
 
 function parseJsonl(content, parserName) {

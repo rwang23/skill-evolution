@@ -17,3 +17,5 @@ jobs:
           node-version: "20"
       - run: node --test tests/skill-evolution.test.js
       - run: node scripts/validate-skill-package.js .
+      - run: python tools/package_skill.py --check
+      - run: python -m unittest discover -s tests -p "test_*.py" -v

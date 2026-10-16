@@ -6,7 +6,7 @@
 - Project root: `<PROJECT_ROOT>`
 - Project: `skill-evolution`
 - Purpose: convert repeated agent behavior and user feedback into reviewable, proposal-only Skill or harness improvements.
-- Stack: Node.js standard library, Markdown, JSON, YAML metadata, and `node:test`.
+- Stack: Node.js standard library, Markdown, JSON, YAML metadata, and `node:test`; Python standard library for distribution packaging only.
 - Canonical package manager: none; Node.js standard library only.
 - Production/live-data sensitivity: no live writes. Session exports and proposal excerpts may contain private paths, operational details, or credentials and must be redacted.
 - Public source: `https://github.com/rwang23/skill-evolution`.
@@ -31,6 +31,8 @@
 ```powershell
 node --test tests/*.test.js
 node scripts/validate-skill-package.js .
+python tools/package_skill.py --check
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 ## Tooling map
@@ -41,6 +43,10 @@ node scripts/validate-skill-package.js .
 - Behavior tests: `tests/skill-evolution.test.js`
 - Route fixtures: `evals/evals.json`
 - Active mirror sync: `tools/Sync-ActiveSkill.ps1`
+- Installation authority: `INSTALL.md`; Claude Code uses `/skill-evolution`, Codex uses `$skill-evolution`.
+- Claude upload artifact: `skill-evolution.zip`, rebuilt with `python tools/package_skill.py` (Python 3.9+; no extra packages). Only runtime files are included, with stable LF line endings.
+- Public first-run sample: `examples/repeated-feedback.jsonl`; synthetic input, not customer evidence.
+- README demonstration: `assets/`; reproduction sources live under `tools/readme-demo/`. Marketing media is excluded from the upload ZIP.
 
 ## Change boundaries
 

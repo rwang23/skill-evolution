@@ -2,6 +2,10 @@
 
 ## 2026-10-15
 
+- Reworked English and Chinese READMEs around user outcomes, first-use examples, Claude installation, and agent-assisted setup; moved technical detail into installation and development references.
+- Added an eight-second illustrative GIF, a still image, and reproducible local animation sources for the README.
+- Added a deterministic runtime-only Claude upload ZIP and fresh-install tests for personal/project folders, spaces in paths, and running from another working directory.
+- Preserve Claude Code tool-use/result blocks, explicit tool error flags, and metadata boundaries when normalizing its transcripts.
 - Detect Codex exports without a forced generic parser, retain source-line pointers, exclude known injected context, and deduplicate paired event/response messages.
 - Require explicit transcript scope, reject mismatched project selection and inputs above 32 MiB, and disclose parsing/filtering/truncation coverage.
 - Require corroborated user feedback for heuristic proposal screening; redact before excerpt truncation and target-name inference.

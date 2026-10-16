@@ -1,0 +1,5 @@
+{"role":"user","timestamp":"2026-10-01T10:00:00Z","content":"You missed the owner again. Our handoff Skill needs to carry the owner and due date forward."}
+{"role":"assistant","timestamp":"2026-10-01T10:00:01Z","content":"I will check the handoff output and keep the target Skill unchanged."}
+{"role":"tool_call","timestamp":"2026-10-01T10:00:02Z","content":"Check the handoff output against its required fields."}
+{"role":"tool_output","timestamp":"2026-10-01T10:00:03Z","content":"Error: the handoff is missing its owner and due date."}
+{"role":"user","timestamp":"2026-10-01T10:00:04Z","content":"You missed the due date again. Compare a small workflow correction with a regression-first option. Return a proposal for review."}

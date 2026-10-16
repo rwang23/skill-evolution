@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1120, height=600" />
+    <title>Skill Evolution — review every change</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        font-synthesis: none;
+        text-rendering: geometricPrecision;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1120px;
+        height: 600px;
+        margin: 0;
+        overflow: hidden;
+        background: #08161f;
+        color: #eff4f1;
+      }
+
+      #root {
+        position: relative;
+        width: 1120px;
+        height: 600px;
+        overflow: hidden;
+        background: #08161f;
+        color: #eff4f1;
+      }
+
+      #brand,
+      #sample-label {
+        position: absolute;
+        top: 34px;
+        z-index: 2;
+        color: #a9c0c2;
+        font-size: 15px;
+        line-height: 22px;
+      }
+
+      #brand {
+        left: 56px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #70d9c6;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      #brand-mark {
+        display: block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #70d9c6;
+      }
+
+      #sample-label {
+        right: 56px;
+        padding: 6px 12px;
+        border: 1px solid #29434e;
+        border-radius: 999px;
+        background: #0d202a;
+        color: #c5d3d1;
+      }
+
+      #hero {
+        position: absolute;
+        top: 82px;
+        left: 56px;
+        width: 1008px;
+        opacity: 0;
+      }
+
+      #headline {
+        margin: 0;
+        color: #f1f4ef;
+        font-size: 48px;
+        font-weight: 650;
+        letter-spacing: -0.045em;
+        line-height: 1.12;
+      }
+
+      #subhead {
+        margin: 8px 0 0;
+        color: #a9bdc1;
+        font-size: 21px;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        line-height: 1.35;
+      }
+
+      .panel {
+        position: absolute;
+        top: 218px;
+        height: 286px;
+        overflow: hidden;
+        border: 1px solid #29414c;
+        border-radius: 14px;
+        background: #0d202a;
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+        opacity: 0;
+      }
+
+      #feedback-card {
+        left: 56px;
+        width: 332px;
+        padding: 22px 20px;
+      }
+
+      #review-card {
+        left: 428px;
+        width: 636px;
+        padding: 20px 22px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: #94aeb5;
+        font-size: 14px;
+        font-weight: 650;
+        letter-spacing: 0.12em;
+        line-height: 20px;
+        text-transform: uppercase;
+      }
+
+      .quote-card {
+        position: absolute;
+        left: 20px;
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        width: 290px;
+        height: 62px;
+        padding: 8px 12px;
+        border: 1px solid #29434e;
+        border-left: 3px solid #ee947d;
+        border-radius: 9px;
+        background: #112732;
+        opacity: 0;
+      }
+
+      #quote-one {
+        top: 62px;
+      }
+
+      #quote-two {
+        top: 137px;
+      }
+
+      .quote-mark {
+        align-self: start;
+        color: #ee947d;
+        font-family: Georgia, serif;
+        font-size: 34px;
+        line-height: 32px;
+      }
+
+      .quote-copy {
+        margin: 0;
+        color: #e8efec;
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        line-height: 1.25;
+      }
+
+      #feedback-note {
+        position: absolute;
+        top: 224px;
+        left: 22px;
+        margin: 0;
+        color: #91a9b0;
+        font-size: 15px;
+        line-height: 20px;
+        opacity: 0;
+      }
+
+      #bridge {
+        position: absolute;
+        top: 359px;
+        left: 388px;
+        width: 40px;
+        height: 2px;
+        transform-origin: left center;
+      }
+
+      #bridge-line {
+        position: absolute;
+        inset: 0;
+        transform-origin: left center;
+        background: #4b8583;
+      }
+
+      #bridge-line::after {
+        position: absolute;
+        top: -4px;
+        right: -1px;
+        width: 0;
+        height: 0;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+        border-left: 7px solid #70d9c6;
+        content: "";
+      }
+
+      #bridge-dot {
+        position: absolute;
+        top: -4px;
+        left: 0;
+        width: 10px;
+        height: 10px;
+        border: 2px solid #08161f;
+        border-radius: 50%;
+        background: #ee947d;
+        opacity: 0;
+      }
+
+      #review-heading {
+        margin: 6px 0 0;
+        color: #eef3ef;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 25px;
+      }
+
+      #steps {
+        position: absolute;
+        top: 70px;
+        right: 22px;
+        left: 22px;
+        display: grid;
+        grid-template-rows: repeat(4, 45px);
+        gap: 5px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 30px 208px minmax(0, 1fr);
+        align-items: center;
+        column-gap: 12px;
+        min-width: 0;
+        border-bottom: 1px solid #233b46;
+        opacity: 0;
+      }
+
+      .step:last-child {
+        border-bottom: 0;
+      }
+
+      .step-number {
+        display: grid;
+        place-items: center;
+        width: 27px;
+        height: 27px;
+        border: 1px solid #4a7f80;
+        border-radius: 50%;
+        color: #8de0ce;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .step-title {
+        margin: 0;
+        color: #e9f0ec;
+        font-size: 18px;
+        font-weight: 650;
+        letter-spacing: -0.015em;
+        line-height: 1.2;
+      }
+
+      .step-body {
+        margin: 0;
+        color: #9fb4ba;
+        font-size: 15px;
+        font-weight: 400;
+        letter-spacing: 0;
+        line-height: 1.25;
+      }
+
+      #step-approval .step-number {
+        border-color: #bd735f;
+        color: #f2a18a;
+      }
+
+      #footer-rule {
+        position: absolute;
+        top: 524px;
+        right: 56px;
+        left: 56px;
+        height: 1px;
+        background: #203944;
+      }
+
+      #footer-copy {
+        position: absolute;
+        top: 538px;
+        left: 56px;
+        width: 1008px;
+        height: 40px;
+        opacity: 0;
+      }
+
+      #footer-context,
+      #closing-line {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        color: #c5d4d0;
+        font-size: 25px;
+        font-weight: 550;
+        letter-spacing: -0.025em;
+        line-height: 1.25;
+        opacity: 0;
+      }
+
+      #closing-line {
+        color: #f1f4ef;
+        font-weight: 650;
+      }
+
+      @keyframes rise-10 {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes rise-12 {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes rise-8 {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes rise-5 {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes fade-out {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+
+      @keyframes slide-in {
+        from { opacity: 0; transform: translateX(8px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      @keyframes draw-line {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+      }
+
+      @keyframes travel-dot {
+        from { opacity: 0; transform: translateX(0); }
+        to { opacity: 1; transform: translateX(29px); }
+      }
+
+      #hero {
+        animation: rise-10 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.16s both,
+          fade-out 0.26s ease-in 7.72s forwards;
+      }
+
+      #feedback-card {
+        animation: rise-12 0.42s cubic-bezier(0.22, 1, 0.36, 1) 0.38s both,
+          fade-out 0.26s ease-in 7.72s forwards;
+      }
+
+      #quote-one { animation: rise-8 0.3s ease-out 0.72s both; }
+      #quote-two { animation: rise-8 0.3s ease-out 1.13s both; }
+      #feedback-note { animation: fade-in 0.26s ease-out 1.48s both; }
+      #bridge { animation: fade-out 0.26s ease-in 7.72s forwards; }
+      #bridge-line { animation: draw-line 0.34s ease-out 1.7s both; }
+      #bridge-dot { animation: travel-dot 0.36s ease-in-out 1.82s both; }
+
+      #review-card {
+        animation: rise-10 0.4s cubic-bezier(0.22, 1, 0.36, 1) 1.78s both,
+          fade-out 0.26s ease-in 7.72s forwards;
+      }
+
+      #step-evidence { animation: slide-in 0.32s ease-out 2.08s both; }
+      #step-smallest-change { animation: slide-in 0.32s ease-out 2.4s both; }
+      #step-regression-check { animation: slide-in 0.32s ease-out 2.72s both; }
+      #step-approval { animation: slide-in 0.32s ease-out 3.04s both; }
+
+      #footer-copy {
+        animation: rise-5 0.3s ease-out 3.72s both,
+          fade-out 0.26s ease-in 7.72s forwards;
+      }
+
+      #footer-context {
+        animation: fade-in 0.24s ease-out 3.85s both,
+          fade-out 0.2s ease-in 4.92s forwards;
+      }
+
+      #closing-line { animation: fade-in 0.32s ease-out 5.14s both; }
+    </style>
+  </head>
+  <body>
+    <main
+      id="root"
+      data-composition-id="readme-demo"
+      data-start="0"
+      data-width="1120"
+      data-height="600"
+      data-duration="8"
+      data-fps="24"
+      data-no-timeline
+    >
+      <div id="brand" aria-hidden="true"><span id="brand-mark"></span>Skill Evolution</div>
+      <div id="sample-label">Illustrative workflow · sample data</div>
+
+      <header id="hero" class="loop-content">
+        <h1 id="headline">Stop repeating the same correction.</h1>
+        <p id="subhead">Recurring feedback can become a proposal for your review.</p>
+      </header>
+
+      <section id="feedback-card" class="panel loop-content" aria-label="Example user corrections">
+        <p class="eyebrow">Example corrections</p>
+        <article id="quote-one" class="quote-card">
+          <span class="quote-mark" aria-hidden="true">“</span>
+          <p class="quote-copy">You missed the owner again.</p>
+        </article>
+        <article id="quote-two" class="quote-card">
+          <span class="quote-mark" aria-hidden="true">“</span>
+          <p class="quote-copy">The deadline is missing again.</p>
+        </article>
+        <p id="feedback-note">Repeated feedback becomes evidence to review.</p>
+      </section>
+
+      <div id="bridge" class="loop-content" aria-hidden="true">
+        <div id="bridge-line"></div>
+        <span id="bridge-dot"></span>
+      </div>
+
+      <section id="review-card" class="panel loop-content" aria-label="Review steps">
+        <p class="eyebrow">A proposal to review</p>
+        <h2 id="review-heading">You decide what moves forward.</h2>
+        <div id="steps">
+          <div id="step-evidence" class="step">
+            <span class="step-number">01</span>
+            <h3 class="step-title">Evidence</h3>
+            <p class="step-body">Review the correction in context.</p>
+          </div>
+          <div id="step-smallest-change" class="step">
+            <span class="step-number">02</span>
+            <h3 class="step-title">Smallest change</h3>
+            <p class="step-body">Propose one bounded adjustment.</p>
+          </div>
+          <div id="step-regression-check" class="step">
+            <span class="step-number">03</span>
+            <h3 class="step-title">Regression check</h3>
+            <p class="step-body">Replay the same kind of miss.</p>
+          </div>
+          <div id="step-approval" class="step">
+            <span class="step-number">04</span>
+            <h3 class="step-title">You approve the change</h3>
+            <p class="step-body">Your review decides what moves forward.</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="footer-rule" aria-hidden="true"></div>
+      <footer id="footer-copy" class="loop-content">
+        <p id="footer-context">The decision stays in your hands.</p>
+        <p id="closing-line">Teach the workflow once. Review every change.</p>
+      </footer>
+
+    </main>
+  </body>
+</html>

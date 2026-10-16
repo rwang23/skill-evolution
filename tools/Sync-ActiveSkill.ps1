@@ -16,8 +16,8 @@ if ((Split-Path -Leaf $ResolvedDestination) -ne 'skill-evolution') {
     throw "Destination must resolve to a skill-evolution directory: $ResolvedDestination"
 }
 
-$ManagedFiles = @('SKILL.md', 'LICENSE', 'README.md', 'README.zh-CN.md')
-$ManagedDirectories = @('agents', 'evals', 'references', 'scripts')
+$ManagedFiles = @('SKILL.md', 'LICENSE', 'README.md', 'README.zh-CN.md', 'INSTALL.md', 'skill-evolution.zip', 'docs\agent-brief.md')
+$ManagedDirectories = @('agents', 'evals', 'references', 'scripts', 'examples', 'assets')
 $SourceFiles = [System.Collections.Generic.List[string]]::new()
 foreach ($RelativePath in $ManagedFiles) {
     $SourceFiles.Add($RelativePath)

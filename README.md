@@ -1,131 +1,103 @@
-# Skill Evolution
+# Skill Evolution — improve Claude Code and Codex skills from real feedback
 
-Skill Evolution turns repeated agent behavior, user corrections, routing misses, and failed verification into reviewable Skill or harness improvement proposals. It collects evidence and compares options. It never applies the change.
+**Stop teaching your agent the same lesson twice.**
 
-[中文说明](README.zh-CN.md)
+Turn recurring corrections into a small, reviewable improvement to an Agent Skill or workflow. Get the evidence, the suggested change, and a way to check it. You decide what gets applied.
 
-## What it owns
+[Install for Claude Code](#install-in-claude-code) · [Download the Claude ZIP](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [Let your agent install it](#let-your-agent-handle-the-setup) · [中文](README.zh-CN.md)
 
-Use this Skill when a reusable behavior may need to change and the evidence must be traced before anyone edits the package. The output is either `no candidate` or a proposal with evidence, alternatives, validation, maturity impact, risk, and pending approval.
+![Skill Evolution demo: repeated feedback becomes an evidence-backed Agent Skill improvement proposal for Claude Code and Codex](assets/skill-evolution-demo.gif)
 
-Skill Evolution does not create a new Skill package, score a Skill numerically, edit an accepted candidate, install anything, or write to Git. Those are separate actions with separate authority.
+*Illustrative workflow with sample data. [View the still image](assets/skill-evolution-demo-poster.png).*
 
-## Standalone by design
+## Make your feedback useful beyond this conversation
 
-The package needs Node.js 18 or later and uses only Node.js standard-library modules. Its evolution contract, transcript extractor, proposal generator, validator, route fixtures, and tests all live in this repository.
+You corrected the missing owner last time. The next handoff misses it again. Adding another rule immediately may make the Skill longer without fixing the cause.
+
+Skill Evolution helps you work out what should change:
+
+- **Find the recurring problem.** Trace a suggestion back to the relevant feedback and tool result.
+- **Keep the fix small.** Identify the Skill instruction, reference, script, or check that needs attention.
+- **Compare your options.** Review a focused change alongside a regression-first or observe-more alternative.
+- **Know when to leave it alone.** A one-off request or weak evidence can return `no candidate`.
+
+## Install in Claude Code
+
+With Git and Node.js 18+ available, run this in your terminal:
+
+```sh
+git clone https://github.com/rwang23/skill-evolution.git "$HOME/.claude/skills/skill-evolution"
+```
+
+Works in Bash and PowerShell. If that directory already exists, follow the [update instructions](INSTALL.md#update-or-remove) instead of overwriting it.
+
+Start a new Claude Code session and try:
 
 ```text
-Skill Evolution
-├── SKILL.md
-├── references/skill-quality-contract.md
-├── scripts/extract-session.js
-├── scripts/propose-skill-evolution.js
-├── scripts/validate-skill-package.js
-└── evals/evals.json
+/skill-evolution
+Try the bundled repeated-feedback example. Show me the evidence, compare a
+small fix with a regression-first option, and leave all changes for my review.
 ```
 
-It does not call SkillQC, Agent Skill Creator, a platform-managed Skill Creator, or private local configuration. You may provide an audit report or other evidence, but that input is optional and does not grant permission to apply a change.
-
-## Install for an agent
-
-Clone the repository into a directory that your agent discovers as a Skill:
-
-```powershell
-git clone https://github.com/rwang23/skill-evolution.git `
-  "$env:USERPROFILE\.codex\skills\skill-evolution"
-```
-
-For another Agent Skills runtime, copy the same `skill-evolution` folder into that runtime's Skill directory. Keep the folder name unchanged so it matches the frontmatter name.
-
-Then ask the agent directly:
+Then bring a relevant conversation from your own work:
 
 ```text
-Use $skill-evolution to review the repeated routing failures from this milestone.
-Compare the smallest contract change with a regression-first option.
-Return a proposal only. Do not modify files.
+/skill-evolution
+Review the repeated corrections in this conversation. What is the smallest
+reusable improvement? Show the source evidence and a check that would catch
+the same mistake next time. Keep the target Skill unchanged.
 ```
 
-## Proposal workflow
+## Let your agent handle the setup
 
-Normalize an exported session when you need a focused evidence view:
+Copy this into Claude Code, Codex, or another agent with local file access:
 
-```powershell
-node scripts/extract-session.js C:\path\to\session.jsonl `
-  --format json `
-  --include-tool-output `
-  --query routing
+```text
+Install https://github.com/rwang23/skill-evolution for my agent.
+Follow INSTALL.md in that repository. Reuse an existing installation and
+preserve local edits. Verify the installed package and run its bundled example.
+Tell me where it is installed and how to invoke it. Do not enable hooks or
+apply any evolution proposal.
 ```
 
-Generate the review artifacts:
+## Use it with your preferred agent
 
-```powershell
-node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
-  --target-skill-dir C:\path\to\target-skill `
-  --output-dir C:\path\to\review
-```
+| Your setup | Start here |
+| --- | --- |
+| **Claude Code** | Install above; invoke `/skill-evolution`. Personal and project scopes are supported. |
+| **Claude web / Cowork** | [Download the skill ZIP](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip), upload it under Customize → Skills, and enable it. Requires code execution with Node.js 18+. [Steps](INSTALL.md#claude-web-and-cowork). |
+| **Codex** | Install in your existing skill directory and invoke `$skill-evolution`. [Steps](INSTALL.md#codex). |
+| **Another Agent Skills runtime** | Use the same folder with its root `SKILL.md`; confirm the runtime supports local scripts. [Compatibility](references/agent-compatibility.md). |
 
-The generator writes JSON and Markdown. Its deterministic signal score organizes evidence, but it does not establish that a lesson generalizes. A reviewer still checks the cited excerpts and target context.
+The download is a small runtime-only ZIP, ready for Claude's skill-upload flow. Its structure and extracted scripts are tested locally; availability and execution in your Claude account depend on that environment.
 
-Pass an explicit transcript file or `--session-dir`. Codex JSONL exports are detected from their records, including exports outside the Codex home folder. Known injected instruction wrappers are excluded and paired event/response mirrors are counted once. `--session-dir --cwd <project>` fails if no session matches that project.
+## What you get
 
-The extractor rejects inputs above 32 MiB and reports source lines, malformed records, excluded context, query filtering, and truncation. Create a smaller scoped export for a larger session. Extractor output is raw private evidence; generated proposal excerpts are redacted before truncation. Keyword mentions, assistant assertions, and isolated errors produce no candidate without corroborated user feedback. The screening remains heuristic and generalization remains unreviewed.
+A review you can act on:
 
-An external JSON audit can be attached as optional evidence:
+| In the review | Why it helps |
+| --- | --- |
+| Source excerpts and locations | Check whether the suggestion matches what actually happened. |
+| The smallest reusable target | Avoid turning a local correction into a rule for everything. |
+| Alternatives and tradeoffs | Choose a narrow fix, add a regression check first, or wait for more evidence. |
+| A validation plan | Know what would demonstrate that a later change helped. |
+| A pending approval | Keep control of your Skills and workflow. |
 
-```powershell
-node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
-  --target-skill-dir C:\path\to\target-skill `
-  --baseline-report C:\path\to\audit.json `
-  --output-dir C:\path\to\review
-```
+The bundled helpers save JSON and Markdown. Your agent reviews the source context and turns that draft into a specific recommendation. A generated signal is a lead to examine.
 
-## Proposal boundary
+## Good moments to use it
 
-Every version 2 artifact contains:
+- The same correction keeps coming up across handoffs, reviews, or coding sessions.
+- A Skill triggers for the wrong task, misses a required step, or produces an output you keep repairing.
+- You are about to update a shared Skill and want an evidence-backed reason for the change.
+- A model or client update makes you question whether an existing Skill still helps.
 
-- `status: "proposal"` or `"no-candidate"`;
-- `mode: "proposal-only"`;
-- redacted evidence and a signal assessment;
-- target and maturity-impact fields;
-- at least two candidates when a proposal is warranted;
-- validation expectations;
-- `approval.required: true`, `approval.status: "pending"`, and `apply_plan: null`.
+For creating a new Skill, use your authoring workflow. For an immediate one-file fix, handle that task directly. Skill Evolution is the review step before a reusable behavior changes.
 
-The default recommendation is regression-first because it makes the observed miss reproducible before a broader behavior change. A human or separately authorized workflow may choose another candidate after reviewing the source evidence.
+## Your conversations and changes stay under your control
 
-For material changes, compare baseline and candidate on the same task, retain a held-out case, and distinguish task quality, triggering, instruction compliance, and cost. Include a no-Skill control when claiming capability uplift. An optional SkillQC score measures package quality; it cannot prove task improvement. See [the comparison protocol](references/evolution-loop.md#comparison-before-recommendation).
+Choose the transcript or excerpt to review. The helpers run locally, redact supported credential and user-path patterns in proposal excerpts, and keep target files unchanged. Review sensitive content before sharing; your chosen agent provider handles whatever context you send it.
 
-Existing version 2 artifacts remain readable. New coverage and provenance fields are additive; validation now rejects empty or duplicate evidence/candidate IDs and recommendations that do not name a candidate. Older wrappers that relied on implicit home-directory discovery must pass a session path or directory explicitly.
+There is no background history scan or automatic Skill rewrite. Node.js 18+ is the only helper runtime; no extra npm packages, separate service, or additional API key is needed.
 
-## Validate
-
-Validate the package by itself:
-
-```powershell
-node scripts/validate-skill-package.js .
-```
-
-Validate a generated proposal against the same local contract:
-
-```powershell
-node scripts/validate-skill-package.js . `
-  --proposal C:\path\to\review\proposal.json `
-  --json
-```
-
-The validator checks routing metadata, proposal-only boundaries, local links, eval balance, sibling-Skill independence, private paths, credential-shaped strings, script syntax, and proposal schema.
-
-## Development
-
-Run the focused checks from the repository root:
-
-```powershell
-node --test tests/*.test.js
-node scripts/validate-skill-package.js .
-```
-
-CI runs the same checks on Windows and Linux. Synthetic transcripts prove package behavior and regression coverage only. They do not prove that a future applied change improves business outcomes.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+[Installation and updates](INSTALL.md) · [How evidence is reviewed](references/evolution-loop.md) · [Quality contract](references/skill-quality-contract.md) · [Development and checks](docs/agent-brief.md) · [MIT license](LICENSE)

@@ -1,131 +1,99 @@
-# Skill Evolution
+# Skill Evolution：用真实反馈改进 Claude Code 和 Codex 的技能
 
-Skill Evolution 把重复出现的 Agent 行为、用户纠正、路由遗漏和验证失败整理成可审阅的 Skill 或 Agent Harness 改进提案。它负责收集证据和比较方案，不负责应用修改。
+**让你反复说过的纠正，成为下一次改进的依据。**
 
-[English README](README.md)
+Skill Evolution 帮你从对话中找出重复问题，提出一份范围明确、能回查证据、带验证方法的 Agent Skill 或工作流改进建议。你看过以后，再决定改什么。
 
-## 它负责什么
+[安装到 Claude Code](#安装到-claude-code) · [下载 Claude 安装包](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [交给 Agent 安装](#交给-agent-安装) · [English](README.md)
 
-当某个可复用行为可能需要调整，而且动手前必须还原证据链时，使用本 Skill。结果只有两种：`no candidate`，或一份包含证据、备选方案、验证、成熟度影响、风险和待审批状态的提案。
+![Skill Evolution 演示：把重复反馈整理成适用于 Claude Code 和 Codex 的技能改进提案，保留证据和用户审批](assets/skill-evolution-demo.gif)
 
-Skill Evolution 不创建新 Skill 包，不做量化评分，不修改已接受的方案，不安装文件，也不写入 Git。这些动作需要单独的工具和权限。
+*动图使用示例数据说明工作方式。[查看静态图](assets/skill-evolution-demo-poster.png)。*
 
-## 独立运行
+## 少做几次重复纠正
 
-运行环境只需要 Node.js 18 或更高版本，全部代码只使用 Node.js 标准库。演化契约、会话提取器、提案生成器、验证器、路由用例和测试都在本仓库内。
+上次交接漏了负责人，你已经提醒过；下一次又漏了。直接给 Skill 加一条规则，未必能解决原因，还可能让说明越来越长。
+
+Skill Evolution 帮你先把问题看清楚：
+
+- **找出反复出现的失误。** 建议能回到对应的用户反馈和工具结果，不靠印象判断。
+- **把修改范围缩小。** 确认该改的是哪条指令、哪份参考、哪个脚本或检查。
+- **比较几个做法。** 可以先做最小修改，也可以先补回归检查，或再观察一次。
+- **允许暂时不改。** 一次性任务或证据不足时，返回 `no candidate`，避免把偶发情况写进长期规则。
+
+## 安装到 Claude Code
+
+准备好 Git 和 Node.js 18+，在终端运行：
+
+```sh
+git clone https://github.com/rwang23/skill-evolution.git "$HOME/.claude/skills/skill-evolution"
+```
+
+Bash 和 PowerShell 都能使用。如果这个目录已经存在，先按[更新说明](INSTALL.md#update-or-remove)核对，不要覆盖已有修改。
+
+新开一个 Claude Code 会话，先用示例体验：
 
 ```text
-Skill Evolution
-├── SKILL.md
-├── references/skill-quality-contract.md
-├── scripts/extract-session.js
-├── scripts/propose-skill-evolution.js
-├── scripts/validate-skill-package.js
-└── evals/evals.json
+/skill-evolution
+先使用自带的 repeated-feedback 示例，说明有哪些证据，比较最小修改和
+先补回归检查两个方案。所有改动都留给我审阅。
 ```
 
-它不调用 SkillQC、Agent Skill Creator、平台管理的 Skill Creator，也不依赖私有本地配置。你可以附加审计报告或其他证据，但这些都是可选输入，不能代替修改授权。
-
-## 安装给 Agent
-
-把仓库克隆到 Agent 能发现的 Skill 目录：
-
-```powershell
-git clone https://github.com/rwang23/skill-evolution.git `
-  "$env:USERPROFILE\.codex\skills\skill-evolution"
-```
-
-其他兼容 Agent Skills 的运行环境也可以直接复制同一个 `skill-evolution` 文件夹。文件夹名称不要改动，它需要和 frontmatter 中的名称一致。
-
-安装后直接告诉 Agent：
+然后再试自己的对话：
 
 ```text
-请使用 $skill-evolution 复盘这个里程碑中重复出现的路由失败。
-比较最小契约修改和先补回归用例两种方案。
-只返回提案，不要修改文件。
+/skill-evolution
+复盘这段对话中重复出现的纠正。最小、可复用的改进是什么？
+请列出原始证据，以及下次能发现同类问题的检查。保持目标 Skill 不变。
 ```
 
-## 生成提案
+## 交给 Agent 安装
 
-需要聚焦查看会话证据时，先规范化导出的会话：
+把下面这段话交给有本地文件访问能力的 Claude Code、Codex 或其他 Agent：
 
-```powershell
-node scripts/extract-session.js C:\path\to\session.jsonl `
-  --format json `
-  --include-tool-output `
-  --query routing
+```text
+请为我的 Agent 安装 https://github.com/rwang23/skill-evolution 。
+按照仓库里的 INSTALL.md 操作。先查找已有安装，保留本地修改，
+验证安装包并运行自带示例。告诉我安装在哪、以后如何调用。
+不要启用 hooks，也不要应用任何技能改进提案。
 ```
 
-生成 JSON 和 Markdown 审阅文件：
+## 选择你的使用环境
 
-```powershell
-node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
-  --target-skill-dir C:\path\to\target-skill `
-  --output-dir C:\path\to\review
-```
+| 使用环境 | 从这里开始 |
+| --- | --- |
+| **Claude Code** | 按上面的方式安装，使用 `/skill-evolution`；支持个人目录和项目目录。 |
+| **Claude 网页版 / Cowork** | [下载安装包](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip)，在 Customize → Skills 中上传并启用。执行环境需要代码执行能力及 Node.js 18+。[详细步骤](INSTALL.md#claude-web-and-cowork)。 |
+| **Codex** | 安装到现有技能目录，使用 `$skill-evolution`。[详细步骤](INSTALL.md#codex)。 |
+| **其他 Agent Skills 环境** | 使用同一个含根目录 `SKILL.md` 的文件夹，并确认支持本地脚本。[兼容说明](references/agent-compatibility.md)。 |
 
-生成器使用确定性信号分数整理证据。这个分数不能证明经验已经具有普适性，审阅者仍需回到原始上下文检查引用和目标文件。
+下载包只包含运行所需内容，按 Claude 的技能上传结构打包。本地已测试压缩包结构和解压后的脚本；你的 Claude 账户能否上传、运行，还取决于相应环境。
 
-调用时必须传入具体会话文件或 `--session-dir`。提取器会根据记录识别 Codex JSONL，包括导出到其他目录的文件；已知的注入指令包装会被排除，同一消息的 event/response 副本只计一次。使用 `--session-dir --cwd <project>` 时，找不到匹配项目就会停止，不会改读其他项目。
+## 你会拿到什么
 
-单个输入上限为 32 MiB，更大的会话需要先导出与问题有关的片段。结果会保留来源行号，并说明解析错误、上下文排除、查询过滤和截断情况。提取器输出仍是私有原文；提案中的摘录会先脱敏，再截短。普通关键词、助手自述或一次孤立报错不足以生成改进候选。这些判断仍是启发式筛选，经验是否通用需要人工核查。
+| 审阅内容 | 能帮你做什么 |
+| --- | --- |
+| 原始摘录和来源位置 | 检查建议是否符合实际发生的情况。 |
+| 最小的可复用修改位置 | 避免把局部纠正扩大成所有任务的规则。 |
+| 备选方案和取舍 | 决定先小改、先补检查，还是继续观察。 |
+| 验证方法 | 知道以后如何判断修改是否有帮助。 |
+| 待确认的修改状态 | 保留对 Skill 和工作流的决定权。 |
 
-也可以附加一份通用 JSON 审计作为可选证据：
+自带工具会保存 JSON 和 Markdown。Agent 需要回看上下文，把初步线索整理成具体建议；自动识别到的信号仍需核查。
 
-```powershell
-node scripts/propose-skill-evolution.js C:\path\to\session.jsonl `
-  --target-skill-dir C:\path\to\target-skill `
-  --baseline-report C:\path\to\audit.json `
-  --output-dir C:\path\to\review
-```
+## 什么时候值得用
 
-## 提案边界
+- 交接、审阅或编码时，同一类问题反复需要你纠正。
+- Skill 选错任务、漏掉必要步骤，或者产物总要手工修补。
+- 准备调整团队共享的 Skill，希望先确认修改依据。
+- 模型或客户端更新后，想检查现有 Skill 是否仍然有帮助。
 
-每份 version 2 提案都包含：
+要新建 Skill，使用你的技能编写流程；要立刻改一个文件，直接处理那个任务。需要改变可复用行为之前，再用 Skill Evolution 做这次审阅。
 
-- `status: "proposal"` 或 `"no-candidate"`；
-- `mode: "proposal-only"`；
-- 已脱敏的证据和信号判断；
-- 目标文件与成熟度影响；
-- 证据足够时至少比较两个候选方案；
-- 验证要求；
-- `approval.required: true`、`approval.status: "pending"` 和 `apply_plan: null`。
+## 对话和修改由你掌握
 
-默认推荐先补回归用例，因为它能在扩大修改前复现已经观察到的问题。审阅者或另一个获得明确授权的工作流可以在核对原始证据后选择其他方案。
+由你选择要审阅的会话或片段。工具在本地运行，会对提案摘录中可识别的凭据和用户路径做脱敏，并保持目标文件不变。分享前仍需检查敏感内容；你发给 Agent 的上下文由相应服务处理。
 
-修改影响较大时，用同一任务比较基线和候选版本，另留一个未参与修改的案例。分别检查任务结果、触发是否准确、指令是否被遵守，以及实际可测的成本。如果声称 Skill 能增加模型能力，还应加入不加载 Skill 的对照。SkillQC 分数衡量包质量，不能证明任务效果变好，详见[比较方法](references/evolution-loop.md#comparison-before-recommendation)。
+没有后台历史扫描，也不会自动改写 Skill。工具只需要 Node.js 18+，无需额外 npm 包、独立服务或额外 API Key。
 
-提案仍使用 version 2，来源和覆盖字段均为新增的可选信息。验证器会拒绝空白或重复的证据/候选标识，以及指向不存在候选的推荐。旧包装脚本若依赖自动搜索用户目录，需要改为明确传入会话文件或目录。
-
-## 验证
-
-单独验证本 Skill 包：
-
-```powershell
-node scripts/validate-skill-package.js .
-```
-
-用同一份本地契约验证生成的提案：
-
-```powershell
-node scripts/validate-skill-package.js . `
-  --proposal C:\path\to\review\proposal.json `
-  --json
-```
-
-验证范围包括路由元数据、只提案边界、本地链接、用例平衡、兄弟 Skill 独立性、私有路径、疑似凭据、脚本语法和提案结构。
-
-## 开发验证
-
-在仓库根目录运行：
-
-```powershell
-node --test tests/*.test.js
-node scripts/validate-skill-package.js .
-```
-
-CI 会在 Windows 和 Linux 上运行相同检查。合成会话只能证明包行为和回归覆盖，不能证明未来应用某个修改后一定能改善业务结果。
-
-## 许可
-
-MIT，详见 [LICENSE](LICENSE)。
+[安装与更新](INSTALL.md) · [如何审阅证据](references/evolution-loop.md) · [质量约定](references/skill-quality-contract.md) · [开发与检查](docs/agent-brief.md) · [MIT 许可](LICENSE)

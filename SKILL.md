@@ -7,15 +7,17 @@ Turn observed agent behavior into a bounded improvement proposal. This Skill is 
 
 Resolve this package's directory as `<skill-root>`. All required instructions, scripts, and validation rules live below that directory.
 
+Invoke with `/skill-evolution` in Claude Code or `$skill-evolution` in Codex. Script paths are relative to the installed package, not the user's working directory; quote absolute paths when running them. A first-time user may try `examples/repeated-feedback.jsonl` before sharing their own transcript.
+
 ## Workflow
 
 1. Confirm the request is about a reusable Skill or agent-harness behavior. For a one-off project correction, return `no candidate` and keep the issue local.
 2. Read [the evolution quality contract](references/skill-quality-contract.md). Define the suspected failure, the target surface, the evidence threshold, and the approval boundary before proposing anything.
 3. Collect the smallest decisive evidence set from explicitly selected transcripts. Prefer exact user corrections, repeated failures, failed verification, routing misses, and before/after outcomes. Use summaries as pointers; verify the source before calling an incident observed. Keep observed facts separate from inference.
-4. When a transcript needs normalization, run `node <skill-root>/scripts/extract-session.js <session-file> --format json --include-tool-output`. Use `--query <text>` for a focused extract.
+4. When a transcript needs normalization, run `node "<skill-root>/scripts/extract-session.js" "<session-file>" --format json --include-tool-output`. Use `--agent claude` for Claude Code exports and `--query <text>` for a focused extract.
 5. Inspect extraction coverage and source lines. Exclude injected instructions and mirrored events from feedback counts. Test generalization: a candidate must explain a repeatable behavior, name the smallest durable target, and define a regression check. If the evidence supports only one transient case, return `no candidate`.
-6. Generate a review artifact with `node <skill-root>/scripts/propose-skill-evolution.js <session-file> --target-skill-dir <target> --output-dir <review-dir>`. A generic JSON audit may be supplied with `--baseline-report <file>`; it is optional.
-7. Validate both this package and the proposal with `node <skill-root>/scripts/validate-skill-package.js <skill-root> --proposal <proposal.json>`.
+6. Generate a review artifact with `node "<skill-root>/scripts/propose-skill-evolution.js" "<session-file>" --target-skill-dir "<target>" --output-dir "<review-dir>"`. A generic JSON audit may be supplied with `--baseline-report <file>`; it is optional.
+7. Validate both this package and the proposal with `node "<skill-root>/scripts/validate-skill-package.js" "<skill-root>" --proposal "<proposal.json>"`.
 8. Return the proposal or `no candidate`. Name the evidence, target surface, alternatives considered, smallest recommended change, regression check, maturity impact, risk, and missing evidence.
 
 ## Output

@@ -246,6 +246,23 @@ test('validator help and non-package directories do not trigger unrelated scans'
   assert.ok(!result.stdout.includes('unrelated.txt'));
 });
 
+test('Claude Code content blocks preserve tool evidence and exclude metadata', (t) => {
+  const directory = scratch(t);
+  const file = path.join(__dirname, 'fixtures', 'claude-session.jsonl');
+  const result = run(extractor, [file, '--agent', 'claude', '--format', 'json', '--include-tool-output']);
+  assert.equal(result.status, 0, result.stderr);
+  const transcript = JSON.parse(result.stdout);
+  assert.deepEqual(transcript.messages.map((item) => item.role), ['user', 'assistant', 'tool_call', 'tool_output', 'user']);
+  assert.equal(transcript.coverage.context_messages_excluded, 1);
+  assert.equal(transcript.messages[3].source_line, 3);
+  const proposal = propose(file, directory, ['--agent', 'claude']);
+  assert.equal(proposal.status, 'proposal');
+  assert.equal(proposal.signal_assessment.counts.toolCalls, 1);
+  assert.equal(proposal.signal_assessment.counts.toolOutputs, 1);
+  assert.equal(proposal.signal_assessment.counts.userCorrections, 2);
+  assert.equal(proposal.signal_assessment.counts.errorSignals, 1);
+});
+
 test('extractor normalizes a generic JSONL transcript', () => {
   const result = run(extractor, [
     proposalFixture,

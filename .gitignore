@@ -1,3 +1,4 @@
 .audit-work/
 .agent-skill-evolution/
 *.tmp
+__pycache__/

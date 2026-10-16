@@ -30,17 +30,15 @@ Codex does not need a native hook to run this skill manually. For automatic revi
 
 ## Claude Code
 
-Claude Code has lifecycle hooks such as session, prompt, stop, and tool-use events. Treat hooks as deterministic capture or enforcement points.
+Install the folder at `~/.claude/skills/skill-evolution/` for personal use or `.claude/skills/skill-evolution/` for a project. Its root `SKILL.md` supplies the name, description, and instructions. Invoke `/skill-evolution`; `$skill-evolution` is the Codex spelling. Supporting files load on demand, and absolute quoted script paths work when the task's cwd is outside the installed folder. See the [official Claude Code skill guide](https://code.claude.com/docs/en/skills).
 
-Recommended use:
+The extractor accepts explicit Claude Code JSONL exports with `--agent claude`. It separates `tool_use` and `tool_result` blocks from chat text, preserves tool error flags and source lines, and excludes `isMeta` and compact-summary records from user feedback. Never infer private-history access from the skill being installed.
 
-- `SessionEnd` or `Stop`: append a compact session summary or trigger a background proposal job.
-- `PostToolUse`: capture repeated tool failures or verification misses.
-- `UserPromptSubmit`: inject a reminder only when a project requires it.
+No hooks are required. If the user separately requests a hook or recurring review, keep it proposal-only and explicitly scoped to selected inputs.
 
-Keep hook commands in standalone scripts instead of large inline config. The hook should write evidence or a proposal, not directly rewrite skills without review.
+## Claude web and Cowork
 
-Claude Code sessions are commonly project-scoped JSONL transcripts under a user home project-session directory. Prefer an explicit `--session-dir` or explicit session file path when exact local layout differs.
+Use the repository's `skill-evolution.zip` upload artifact. It contains one skill folder and only the runtime instructions, scripts, references, optional metadata/evals, license, and sample. Node.js 18+ must be available in the code-execution environment to run the helpers. A local ZIP/extraction check is not proof of upload acceptance or execution in a particular account. See [Claude's custom-skill instructions](https://support.claude.com/en/articles/12512180-use-skills-in-claude).
 
 ## Hermes
 

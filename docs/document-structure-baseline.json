@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "provisional",
-  "last_reviewed": "2026-08-12",
+  "last_reviewed": "2026-10-15",
   "owner": "repository owner",
   "confirmed_by": null,
   "confirmed_at": null,
@@ -41,7 +41,29 @@
   "content_authorities": {
     "workflow": "../SKILL.md",
     "evolution_contract": "../references/skill-quality-contract.md",
-    "proposal_generator": "../scripts/propose-skill-evolution.js"
+    "proposal_generator": "../scripts/propose-skill-evolution.js",
+    "installation": "../INSTALL.md",
+    "distribution_builder": "../tools/package_skill.py"
+  },
+  "supporting_paths": {
+    "examples/": {
+      "purpose": "Public synthetic first-run input for the skill and installation smoke test",
+      "role": "fixture",
+      "lifecycle": "current",
+      "consumer": "SKILL.md, INSTALL.md, package install tests"
+    },
+    "assets/": {
+      "purpose": "README demonstration GIF and accessible still image",
+      "role": "asset",
+      "lifecycle": "current",
+      "consumer": "English and Chinese repository READMEs"
+    },
+    "tools/readme-demo/": {
+      "purpose": "Reproducible local source for the public explanatory animation",
+      "role": "tooling",
+      "lifecycle": "current",
+      "consumer": "Maintainers rebuilding README media"
+    }
   },
   "new_folder_policy": {
     "allowed": true,
