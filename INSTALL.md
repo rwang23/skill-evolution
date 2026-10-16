@@ -48,12 +48,20 @@ The ZIP's structure and extracted runtime are tested locally. Upload acceptance 
 For a fresh personal setup:
 
 ```sh
-git clone https://github.com/rwang23/skill-evolution.git "$HOME/.codex/skills/skill-evolution"
+git clone https://github.com/rwang23/skill-evolution.git "$HOME/.agents/skills/skill-evolution"
 ```
 
-If `CODEX_HOME` is set, use its `skills/skill-evolution` directory. Existing grouped or managed skill layouts take precedence: inspect and reuse the canonical installation rather than cloning a duplicate.
+For a project-only installation, run this from that project's root:
+
+```sh
+git clone https://github.com/rwang23/skill-evolution.git ".agents/skills/skill-evolution"
+```
+
+Codex loads personal skills from `$HOME/.agents/skills` and project skills from `.agents/skills/`. Existing grouped or managed layouts take precedence: reuse an installation your Codex setup already discovers rather than cloning a duplicate. [Official OpenAI skill guide](https://learn.chatgpt.com/docs/build-skills).
 
 Invoke with `$skill-evolution`, then provide a chosen transcript or ask for the bundled example. `agents/openai.yaml` supplies optional Codex interface metadata; Claude uses the same root `SKILL.md` without needing that metadata.
+
+Codex detects newly installed skills automatically. If the skill does not appear, restart Codex.
 
 ## Your first real review
 

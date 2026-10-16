@@ -4,7 +4,7 @@
 
 Turn recurring corrections into a small, reviewable improvement to an Agent Skill or workflow. Get the evidence, the suggested change, and a way to check it. You decide what gets applied.
 
-[Install for Claude Code](#install-in-claude-code) · [Download the Claude ZIP](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [Let your agent install it](#let-your-agent-handle-the-setup) · [中文](README.zh-CN.md)
+[Install in Claude Code](#install-in-claude-code) · [Install in Codex](#install-in-codex) · [Download the Claude ZIP](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [Let your agent install it](#let-your-agent-handle-the-setup) · [中文](README.zh-CN.md)
 
 ![Skill Evolution: make feedback count with evidence, a small change, and your approval for Claude Code and Codex skills](assets/skill-evolution-overview.png)
 
@@ -50,6 +50,26 @@ reusable improvement? Show the source evidence and a check that would catch
 the same mistake next time. Keep the target Skill unchanged.
 ```
 
+## Install in Codex
+
+Install once for your local Codex projects. With Git and Node.js 18+ available, run:
+
+```sh
+git clone https://github.com/rwang23/skill-evolution.git "$HOME/.agents/skills/skill-evolution"
+```
+
+Works in Bash and PowerShell. If you already have this skill installed, reuse it and follow the [update instructions](INSTALL.md#update-or-remove). For a project-only installation, use `.agents/skills/skill-evolution` inside that project instead. [More installation options](INSTALL.md#codex).
+
+Open Codex and try:
+
+```text
+$skill-evolution
+Try the bundled repeated-feedback example. Show me the evidence, compare a
+small fix with a regression-first option, and leave all changes for my review.
+```
+
+Codex discovers new skills automatically. If the skill does not appear, restart Codex. [Official OpenAI skill guide](https://learn.chatgpt.com/docs/build-skills).
+
 ## Let your agent handle the setup
 
 Copy this into Claude Code, Codex, or another agent with local file access:
@@ -68,7 +88,7 @@ apply any evolution proposal.
 | --- | --- |
 | **Claude Code** | Install above; invoke `/skill-evolution`. Personal and project scopes are supported. |
 | **Claude web / Cowork** | [Download the skill ZIP](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip), upload it under Customize → Skills, and enable it. Requires code execution with Node.js 18+. [Steps](INSTALL.md#claude-web-and-cowork). |
-| **Codex** | Install in your existing skill directory and invoke `$skill-evolution`. [Steps](INSTALL.md#codex). |
+| **Codex** | [Install above](#install-in-codex); invoke `$skill-evolution`. Personal and project scopes are supported. [Steps](INSTALL.md#codex). |
 | **Another Agent Skills runtime** | Use the same folder with its root `SKILL.md`; confirm the runtime supports local scripts. [Compatibility](references/agent-compatibility.md). |
 
 The download is a small runtime-only ZIP, ready for Claude's skill-upload flow. Its structure and extracted scripts are tested locally; availability and execution in your Claude account depend on that environment.

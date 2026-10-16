@@ -4,7 +4,7 @@
 
 Skill Evolution 帮你从对话中找出重复问题，提出一份范围明确、能回查证据、带验证方法的 Agent Skill 或工作流改进建议。你看过以后，再决定改什么。
 
-[安装到 Claude Code](#安装到-claude-code) · [下载 Claude 安装包](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [交给 Agent 安装](#交给-agent-安装) · [English](README.md)
+[安装到 Claude Code](#安装到-claude-code) · [安装到 Codex](#安装到-codex) · [下载 Claude 安装包](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [交给 Agent 安装](#交给-agent-安装) · [English](README.md)
 
 ![Skill Evolution 浅色介绍图：把重复纠正整理为有证据、范围小、由你决定的 Claude Code 和 Codex 技能改进提案](assets/skill-evolution-overview.png)
 
@@ -49,6 +49,26 @@ Bash 和 PowerShell 都能使用。如果这个目录已经存在，先按[更�
 请列出原始证据，以及下次能发现同类问题的检查。保持目标 Skill 不变。
 ```
 
+## 安装到 Codex
+
+安装一次，就能在本地 Codex 项目中使用。准备好 Git 和 Node.js 18+，在终端运行：
+
+```sh
+git clone https://github.com/rwang23/skill-evolution.git "$HOME/.agents/skills/skill-evolution"
+```
+
+Bash 和 PowerShell 都能使用。如果已经安装过，请复用现有安装并按[更新说明](INSTALL.md#update-or-remove)操作。只想在单个项目中使用时，改为安装到该项目的 `.agents/skills/skill-evolution`。[更多安装选项](INSTALL.md#codex)。
+
+打开 Codex，先用示例体验：
+
+```text
+$skill-evolution
+先使用自带的 repeated-feedback 示例，说明有哪些证据，比较最小修改和
+先补回归检查两个方案。所有改动都留给我审阅。
+```
+
+Codex 会自动发现新安装的技能；如果没有出现，重启 Codex 后再试。[OpenAI 官方技能说明](https://learn.chatgpt.com/docs/build-skills)。
+
 ## 交给 Agent 安装
 
 把下面这段话交给有本地文件访问能力的 Claude Code、Codex 或其他 Agent：
@@ -66,7 +86,7 @@ Bash 和 PowerShell 都能使用。如果这个目录已经存在，先按[更�
 | --- | --- |
 | **Claude Code** | 按上面的方式安装，使用 `/skill-evolution`；支持个人目录和项目目录。 |
 | **Claude 网页版 / Cowork** | [下载安装包](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip)，在 Customize → Skills 中上传并启用。执行环境需要代码执行能力及 Node.js 18+。[详细步骤](INSTALL.md#claude-web-and-cowork)。 |
-| **Codex** | 安装到现有技能目录，使用 `$skill-evolution`。[详细步骤](INSTALL.md#codex)。 |
+| **Codex** | [按上面安装](#安装到-codex)，使用 `$skill-evolution`；支持个人目录和项目目录。[详细步骤](INSTALL.md#codex)。 |
 | **其他 Agent Skills 环境** | 使用同一个含根目录 `SKILL.md` 的文件夹，并确认支持本地脚本。[兼容说明](references/agent-compatibility.md)。 |
 
 下载包只包含运行所需内容，按 Claude 的技能上传结构打包。本地已测试压缩包结构和解压后的脚本；你的 Claude 账户能否上传、运行，还取决于相应环境。
