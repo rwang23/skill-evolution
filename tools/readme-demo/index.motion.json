@@ -1,12 +1,12 @@
 {
   "duration": 8,
   "assertions": [
-    { "kind": "appearsBy", "selector": "#headline", "bySec": 0.8 },
+    { "kind": "appearsBy", "selector": "#headline", "bySec": 0.1 },
     { "kind": "before", "a": "#quote-one", "b": "#quote-two" },
     { "kind": "before", "a": "#step-evidence", "b": "#step-smallest-change" },
     { "kind": "before", "a": "#step-smallest-change", "b": "#step-regression-check" },
     { "kind": "before", "a": "#step-regression-check", "b": "#step-approval" },
-    { "kind": "staysInFrame", "selector": "#feedback-card" },
-    { "kind": "staysInFrame", "selector": "#review-card" }
+    { "kind": "staysInFrame", "selector": "#quote-one" },
+    { "kind": "staysInFrame", "selector": "#review-sheet" }
   ]
 }

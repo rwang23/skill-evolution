@@ -26,7 +26,7 @@ $gifFilter = "fps=${FramesPerSecond},scale=${GifWidth}:-1:flags=lanczos,split[a]
 & ffmpeg -hide_banner -loglevel error -y -i $renderPath -filter_complex $gifFilter -loop 0 -an $gifPath
 if ($LASTEXITCODE -ne 0) { throw 'GIF conversion failed.' }
 
-& ffmpeg -hide_banner -loglevel error -y -ss 5.8 -i $renderPath -frames:v 1 -update 1 $posterPath
+& ffmpeg -hide_banner -loglevel error -y -ss 4.8 -i $renderPath -frames:v 1 -update 1 $posterPath
 if ($LASTEXITCODE -ne 0) { throw 'Poster extraction failed.' }
 
 $gifInfo = Get-Item -LiteralPath $gifPath

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-16
+
+- Redesigned the README animation and workflow still with a light editorial palette, clearer typography, and more whitespace.
+- Added an overview illustration with layered paper and placed it at the top of the guide; kept the animated workflow next to the explanation.
+
 ## 2026-10-15
 
 - Reworked English and Chinese READMEs around user outcomes, first-use examples, Claude installation, and agent-assisted setup; moved technical detail into installation and development references.

@@ -6,9 +6,7 @@ Skill Evolution 帮你从对话中找出重复问题，提出一份范围明确�
 
 [安装到 Claude Code](#安装到-claude-code) · [下载 Claude 安装包](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [交给 Agent 安装](#交给-agent-安装) · [English](README.md)
 
-![Skill Evolution 演示：把重复反馈整理成适用于 Claude Code 和 Codex 的技能改进提案，保留证据和用户审批](assets/skill-evolution-demo.gif)
-
-*动图使用示例数据说明工作方式。[查看静态图](assets/skill-evolution-demo-poster.png)。*
+![Skill Evolution 浅色介绍图：把重复纠正整理为有证据、范围小、由你决定的 Claude Code 和 Codex 技能改进提案](assets/skill-evolution-overview.png)
 
 ## 少做几次重复纠正
 
@@ -20,6 +18,10 @@ Skill Evolution 帮你先把问题看清楚：
 - **把修改范围缩小。** 确认该改的是哪条指令、哪份参考、哪个脚本或检查。
 - **比较几个做法。** 可以先做最小修改，也可以先补回归检查，或再观察一次。
 - **允许暂时不改。** 一次性任务或证据不足时，返回 `no candidate`，避免把偶发情况写进长期规则。
+
+![Skill Evolution 演示：把重复反馈整理成适用于 Claude Code 和 Codex 的技能改进提案，保留证据和用户审批](assets/skill-evolution-demo.gif)
+
+*动图使用示例数据说明工作方式。[查看静态图](assets/skill-evolution-demo-poster.png)。*
 
 ## 安装到 Claude Code
 

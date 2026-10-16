@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "provisional",
-  "last_reviewed": "2026-10-15",
+  "last_reviewed": "2026-10-16",
   "owner": "repository owner",
   "confirmed_by": null,
   "confirmed_at": null,
@@ -53,7 +53,7 @@
       "consumer": "SKILL.md, INSTALL.md, package install tests"
     },
     "assets/": {
-      "purpose": "README demonstration GIF and accessible still image",
+      "purpose": "Light README overview illustration, demonstration GIF, and workflow still image",
       "role": "asset",
       "lifecycle": "current",
       "consumer": "English and Chinese repository READMEs"

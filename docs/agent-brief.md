@@ -2,7 +2,7 @@
 
 ## Project snapshot
 
-- Last reviewed: 2026-10-15
+- Last reviewed: 2026-10-16
 - Project root: `<PROJECT_ROOT>`
 - Project: `skill-evolution`
 - Purpose: convert repeated agent behavior and user feedback into reviewable, proposal-only Skill or harness improvements.
@@ -46,7 +46,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
 - Installation authority: `INSTALL.md`; Claude Code uses `/skill-evolution`, Codex uses `$skill-evolution`.
 - Claude upload artifact: `skill-evolution.zip`, rebuilt with `python tools/package_skill.py` (Python 3.9+; no extra packages). Only runtime files are included, with stable LF line endings.
 - Public first-run sample: `examples/repeated-feedback.jsonl`; synthetic input, not customer evidence.
-- README demonstration: `assets/`; reproduction sources live under `tools/readme-demo/`. Marketing media is excluded from the upload ZIP.
+- README media: `assets/`; motion reproduction sources live under `tools/readme-demo/`, and the overview illustration prompt is `tools/readme-overview-prompt.md`. Marketing media is excluded from the upload ZIP.
 
 ## Change boundaries
 

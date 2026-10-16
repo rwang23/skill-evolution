@@ -6,9 +6,7 @@ Turn recurring corrections into a small, reviewable improvement to an Agent Skil
 
 [Install for Claude Code](#install-in-claude-code) · [Download the Claude ZIP](https://raw.githubusercontent.com/rwang23/skill-evolution/main/skill-evolution.zip) · [Let your agent install it](#let-your-agent-handle-the-setup) · [中文](README.zh-CN.md)
 
-![Skill Evolution demo: repeated feedback becomes an evidence-backed Agent Skill improvement proposal for Claude Code and Codex](assets/skill-evolution-demo.gif)
-
-*Illustrative workflow with sample data. [View the still image](assets/skill-evolution-demo-poster.png).*
+![Skill Evolution: make feedback count with evidence, a small change, and your approval for Claude Code and Codex skills](assets/skill-evolution-overview.png)
 
 ## Make your feedback useful beyond this conversation
 
@@ -20,6 +18,10 @@ Skill Evolution helps you work out what should change:
 - **Keep the fix small.** Identify the Skill instruction, reference, script, or check that needs attention.
 - **Compare your options.** Review a focused change alongside a regression-first or observe-more alternative.
 - **Know when to leave it alone.** A one-off request or weak evidence can return `no candidate`.
+
+![Skill Evolution demo: repeated feedback becomes an evidence-backed Agent Skill improvement proposal for Claude Code and Codex](assets/skill-evolution-demo.gif)
+
+*Illustrative workflow with sample data. [View the still image](assets/skill-evolution-demo-poster.png).*
 
 ## Install in Claude Code
 
