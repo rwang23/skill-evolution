@@ -1,0 +1,6 @@
+{"type":"assistant","timestamp":"2026-10-20T10:00:00Z","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"alpha-skill"}}]}}
+{"type":"assistant","timestamp":"2026-10-20T10:01:00Z","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"alpha-skill"}},{"type":"tool_use","name":"Read","input":{"file_path":"/skills/beta-skill/SKILL.md"}}]}}
+{"type":"assistant","timestamp":"2026-10-20T10:02:00Z","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ls /skills/gamma-skill/SKILL.md"}}]}}
+{"type":"assistant","timestamp":"2026-09-01T10:02:00Z","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"old-skill"}}]}}
+{"type":"user","timestamp":"2026-10-20T10:03:00Z","message":{"content":"mentions delta-skill/SKILL.md in prose only"}}
+not json but mentions SKILL.md

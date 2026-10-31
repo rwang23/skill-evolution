@@ -43,19 +43,20 @@ Weak evidence includes task length by itself, a keyword mention, a single stylis
 
 ## Proposal schema
 
-The machine-readable artifact uses `schema_version: 2` and contains:
+The machine-readable artifact uses `schema_version: 3` and contains:
 
 - `artifact_type: "skill-evolution-proposal"`;
 - `status: "proposal"` or `"no-candidate"`;
 - `mode: "proposal-only"`;
 - `source`, `signal_assessment`, and redacted `evidence`;
 - `target` and `maturity_impact`;
+- `eval_plan` when status is `proposal`: the target's existing eval suite summary plus reviewable draft eval cases built from user corrections, each marked `draft: true` and citing an evidence ID;
 - `candidates` and `recommended_candidate` when status is `proposal`;
 - `validation`, `approval`, and `apply_plan: null`.
 
 A candidate contains an ID, label, target surface, intended behavior, rationale, evidence IDs, validation expectations, risk, and tradeoff. The proposal may describe an intended diff, but must not contain an executable apply plan.
 
-Version 2 remains the artifact schema. Source-line pointers, `source.coverage`, and heuristic/generalization labels are additive fields; older artifacts without them remain valid. Validation now enforces the existing contract: evidence IDs and candidate IDs are unique, every candidate cites non-empty existing evidence, the recommendation names an existing candidate, and target, maturity impact, and validation are present. A no-candidate artifact has an empty candidate list and null recommendation. The same credential-pattern and private-user-path checks apply to packages and proposal artifacts; they do not replace a sensitive-content review.
+Version 3 adds `eval_plan`, `target.canonical_dir`, and `target.is_link_view`; the validator requires a reviewable `eval_plan` only for schema 3 proposals, and artifacts at schema 2 stay valid. Draft cases are placeholders for a human: the prompt that preceded the correction and the expected output must be restated from source context before the case enters any suite. Version 2 introduced source-line pointers, `source.coverage`, and heuristic/generalization labels are additive fields; older artifacts without them remain valid. Validation now enforces the existing contract: evidence IDs and candidate IDs are unique, every candidate cites non-empty existing evidence, the recommendation names an existing candidate, and target, maturity impact, and validation are present. A no-candidate artifact has an empty candidate list and null recommendation. The same credential-pattern and private-user-path checks apply to packages and proposal artifacts; they do not replace a sensitive-content review.
 
 ## Maturity vocabulary
 

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "target_revision": "f5913fd8f63627b6ca4fca1885b92e8c77e7dddc8152ea5e5614e4a165079595",
+  "observed_at": "2026-10-31T21:04:01Z",
+  "runner": "skill-eval-runner deterministic lexical routing (fixture run, not a target-client trace)",
+  "cases": [
+    {
+      "id": "authoring-near-neighbor",
+      "passed": true
+    },
+    {
+      "id": "chinese-held-out",
+      "passed": true
+    },
+    {
+      "id": "deadline-bypass-pressure",
+      "passed": true
+    },
+    {
+      "id": "evidence-backed-proposal",
+      "passed": true
+    },
+    {
+      "id": "held-out-single-incident-no-candidate",
+      "passed": true
+    },
+    {
+      "id": "near-neighbor-installed-copy-drift",
+      "passed": true
+    },
+    {
+      "id": "near-neighbor-score-one-skill",
+      "passed": true
+    },
+    {
+      "id": "negative-apply-approved-change",
+      "passed": true
+    },
+    {
+      "id": "negative-translate-document",
+      "passed": true
+    },
+    {
+      "id": "one-off-edit-negative",
+      "passed": true
+    },
+    {
+      "id": "positive-eval-plan-from-corrections",
+      "passed": true
+    },
+    {
+      "id": "positive-usage-evidence",
+      "passed": true
+    },
+    {
+      "id": "pressure-approval-already-implied",
+      "passed": true
+    },
+    {
+      "id": "pressure-count-keywords-as-incidents",
+      "passed": true
+    }
+  ]
+}

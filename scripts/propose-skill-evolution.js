@@ -216,6 +216,75 @@ function targetNameFromDir(value) {
   return path.basename(path.resolve(value));
 }
 
+// A target reached through a link view (for example an agent's skills folder) is edited at its canonical owner.
+function resolveTargetOwner(value) {
+  if (!value) return { canonical_dir: null, is_link_view: false };
+  const given = path.resolve(value);
+  let canonical = given;
+  try {
+    canonical = fs.realpathSync(given);
+  } catch {
+    // an unresolved path stays as given; the reviewer sees canonical_dir equal skill_dir
+  }
+  return { canonical_dir: redact(canonical), is_link_view: canonical.toLowerCase() !== given.toLowerCase() };
+}
+
+const evalCaseTypes = ['positive', 'negative', 'near-neighbor', 'held-out'];
+
+// Summarize the target's existing eval suite without running or importing anything from it.
+function summarizeTargetSuite(value) {
+  const empty = { present: false, case_count: 0, case_types: Object.fromEntries(evalCaseTypes.map((type) => [type, 0])), missing_types: [...evalCaseTypes], pressure_cases: 0 };
+  if (!value) return { ...empty, note: 'No --target-skill-dir was supplied, so existing evals were not inspected.' };
+  let canonical = path.resolve(value);
+  try {
+    canonical = fs.realpathSync(canonical);
+  } catch {
+    // keep the path as given
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(canonical, 'evals', 'evals.json'), 'utf8'));
+    const cases = (Array.isArray(data.evals) ? data.evals : Array.isArray(data.cases) ? data.cases : []).filter((item) => item && typeof item === 'object');
+    const types = Object.fromEntries(evalCaseTypes.map((type) => [type, cases.filter((item) => (item.routing?.case_type || item.type) === type).length]));
+    return {
+      present: true,
+      case_count: cases.length,
+      case_types: types,
+      missing_types: evalCaseTypes.filter((type) => !types[type]),
+      pressure_cases: cases.filter((item) => item.pressure).length,
+    };
+  } catch {
+    return { ...empty, note: 'The target has no readable evals/evals.json.' };
+  }
+}
+
+// Turn user corrections into draft eval cases. Drafts are placeholders for a human: the prompt that
+// preceded the correction and the grading expectation must be restated from the source context.
+function buildEvalPlan(analysis, transcript) {
+  const corrections = analysis.evidence.filter((item) => item.type === 'user-correction').slice(0, 5);
+  const suite = summarizeTargetSuite(targetSkillDir);
+  const names = inferTargetNames(transcript.messages || []);
+  return {
+    status: 'draft-for-human-review',
+    target_suite: suite,
+    draft_cases: corrections.map((item, index) => ({
+      draft: true,
+      id: `draft-${item.id.toLowerCase()}`,
+      source_evidence: item.id,
+      prompt: '<REVIEW: restate the user request that preceded this correction, in realistic words>',
+      expected_output: '<REVIEW: describe the answer the correction asked for>',
+      expectations: [`The answer no longer repeats the behavior the user corrected: ${item.excerpt.slice(0, 160)}`],
+      pressure: null,
+      routing: { case_type: 'held-out', should_trigger: names, should_not_trigger: [] },
+      order: index + 1,
+    })),
+    guidance: [
+      'Add each reviewed draft as a held-out case before changing the Skill, so the miss is reproducible.',
+      'Keep a case only if the correction describes behavior that should recur across sessions; drop one-off project preferences.',
+      suite.missing_types.length ? `The target suite lacks case types: ${suite.missing_types.join(', ')}.` : 'The target suite already covers every case type; prefer sharper held-out cases over more volume.',
+    ],
+  };
+}
+
 function inferTargetNames(messages) {
   const names = new Set();
   if (targetSkillDir) return [targetNameFromDir(targetSkillDir)];
@@ -308,7 +377,7 @@ function buildProposal(transcript, analysis, baseline) {
   const createdAt = new Date().toISOString();
   const status = analysis.decision;
   return {
-    schema_version: 2,
+    schema_version: 3,
     artifact_type: 'skill-evolution-proposal',
     status,
     mode: 'proposal-only',
@@ -336,6 +405,7 @@ function buildProposal(transcript, analysis, baseline) {
     },
     target: {
       skill_dir: targetSkillDir ? redact(path.resolve(targetSkillDir)) : null,
+      ...resolveTargetOwner(targetSkillDir),
       candidate_names: inferTargetNames(transcript.messages || []),
       smallest_surface_hint: targetSurface(analysis),
     },
@@ -346,12 +416,13 @@ function buildProposal(transcript, analysis, baseline) {
       additional_gates: [],
       missing_evidence: ['Current target maturity and its gate results were not established by transcript scoring.'],
     },
+    eval_plan: status === 'proposal' ? buildEvalPlan(analysis, transcript) : null,
     candidates: status === 'proposal' ? buildCandidates(analysis) : [],
     recommended_candidate: status === 'proposal' ? 'regression-first' : null,
     validation: {
       package: 'node <skill-root>/scripts/validate-skill-package.js <skill-root>',
       proposal: 'node <skill-root>/scripts/validate-skill-package.js <skill-root> --proposal <proposal.json>',
-      required: ['Review every evidence excerpt in its source context and inspect coverage gaps.', 'Compare baseline and candidate on the same task; keep held-out tasks separate.', 'Run a target-specific regression check before any later edit.'],
+      required: ['Review every evidence excerpt in its source context and inspect coverage gaps.', 'Compare baseline and candidate on the same task; keep held-out tasks separate.', 'Run a target-specific regression check before any later edit.', ...(resolveTargetOwner(targetSkillDir).is_link_view ? ['The target resolves to another directory: apply any approved edit at target.canonical_dir, then confirm every view still links to it.'] : [])],
     },
     approval: {
       required: true,
@@ -402,6 +473,12 @@ function markdownFor(proposal) {
       `Tradeoff: ${candidate.tradeoff}`,
       '',
     );
+  }
+  if (proposal.eval_plan) {
+    const plan = proposal.eval_plan;
+    lines.push('## Eval plan', '', `Status: ${plan.status}`, `Target suite: ${plan.target_suite.present ? `${plan.target_suite.case_count} cases; missing types: ${plan.target_suite.missing_types.join(', ') || 'none'}` : plan.target_suite.note || 'not inspected'}`, '');
+    for (const draft of plan.draft_cases) lines.push(`- ${draft.id} (from ${draft.source_evidence}): ${draft.expectations[0]}`);
+    lines.push('', ...plan.guidance.map((item) => `- ${item}`), '');
   }
   lines.push(
     '## Coverage and validation',

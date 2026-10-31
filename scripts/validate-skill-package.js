@@ -247,8 +247,8 @@ function validateProposal() {
     return;
   }
   validateSensitiveText(JSON.stringify(proposal).replace(/\\\\/g, '\\'), proposalPath);
-  if (proposal.schema_version !== 2 || proposal.artifact_type !== 'skill-evolution-proposal') {
-    add('SE-A1', 'error', 'Proposal must use schema_version 2 and the skill-evolution-proposal artifact type.', proposalPath);
+  if (![2, 3].includes(proposal.schema_version) || proposal.artifact_type !== 'skill-evolution-proposal') {
+    add('SE-A1', 'error', 'Proposal must use schema_version 2 or 3 and the skill-evolution-proposal artifact type.', proposalPath);
   }
   if (!['proposal', 'no-candidate'].includes(proposal.status)) {
     add('SE-A1', 'error', 'Proposal status must be proposal or no-candidate.', proposalPath);
@@ -282,6 +282,15 @@ function validateProposal() {
       add('SE-C1', 'error', 'The recommended candidate must exist in the candidate list.', proposalPath);
     }
     if (!evidenceIds.size) add('SE-E1', 'error', 'A proposal must cite at least one evidence excerpt.', proposalPath);
+    if (proposal.schema_version >= 3) {
+      const plan = proposal.eval_plan;
+      const drafts = Array.isArray(plan?.draft_cases) ? plan.draft_cases : null;
+      if (!plan || plan.status !== 'draft-for-human-review' || !drafts || !plan.target_suite || typeof plan.target_suite.present !== 'boolean') {
+        add('SE-EV1', 'error', 'A schema 3 proposal must carry an eval plan with a target suite summary and reviewable draft cases.', proposalPath);
+      } else if (drafts.some((item) => item?.draft !== true || !evidenceIds.has(item.source_evidence))) {
+        add('SE-EV1', 'error', 'Every draft eval case must be marked draft and cite a proposal evidence ID.', proposalPath);
+      }
+    }
     for (const candidate of candidates) {
       if (!candidate || typeof candidate !== 'object') {
         add('SE-C1', 'error', 'Candidate must be an object.', proposalPath);

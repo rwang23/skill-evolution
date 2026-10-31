@@ -282,7 +282,7 @@ test('proposal artifact is redacted and remains proposal-only', () => {
   const generated = generate(proposalFixture);
   try {
     assert.equal(generated.summary.status, 'proposal');
-    assert.equal(generated.proposal.schema_version, 2);
+    assert.equal(generated.proposal.schema_version, 3);
     assert.equal(generated.proposal.mode, 'proposal-only');
     assert.equal(generated.proposal.approval.required, true);
     assert.equal(generated.proposal.approval.status, 'pending');
@@ -319,4 +319,84 @@ test('package and generated proposal pass the bundled validator', () => {
   } finally {
     fs.rmSync(generated.outputDir, { recursive: true, force: true });
   }
+});
+
+test('proposal carries an eval plan with reviewable draft cases and the target suite summary', (t) => {
+  const directory = scratch(t);
+  const skill = path.join(directory, 'sample-skill');
+  fs.mkdirSync(path.join(skill, 'evals'), { recursive: true });
+  fs.writeFileSync(path.join(skill, 'evals', 'evals.json'), JSON.stringify({ evals: [{ id: 'a', routing: { case_type: 'positive' } }] }));
+  const proposal = propose(proposalFixture, directory, ['--agent', 'generic', '--target-skill-dir', skill]);
+  assert.equal(proposal.schema_version, 3);
+  const plan = proposal.eval_plan;
+  assert.equal(plan.status, 'draft-for-human-review');
+  assert.equal(plan.target_suite.present, true);
+  assert.equal(plan.target_suite.case_count, 1);
+  assert.deepEqual(plan.target_suite.missing_types, ['negative', 'near-neighbor', 'held-out']);
+  assert.ok(plan.draft_cases.length > 0);
+  for (const draft of plan.draft_cases) {
+    assert.equal(draft.draft, true);
+    assert.ok(proposal.evidence.some((item) => item.id === draft.source_evidence));
+    assert.match(draft.prompt, /REVIEW/);
+  }
+  assert.equal(proposal.apply_plan, null);
+});
+
+test('validator rejects a schema 3 proposal without a reviewable eval plan', (t) => {
+  const directory = scratch(t);
+  const proposal = propose(proposalFixture, directory, ['--agent', 'generic']);
+  const broken = { ...proposal, eval_plan: null };
+  const file = path.join(directory, 'broken.json');
+  fs.writeFileSync(file, JSON.stringify(broken));
+  const result = run(validator, [root, '--proposal', file, '--json']);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /SE-EV1/);
+  const ungrounded = { ...proposal, eval_plan: { ...proposal.eval_plan, draft_cases: [{ draft: true, source_evidence: 'E99' }] } };
+  fs.writeFileSync(file, JSON.stringify(ungrounded));
+  assert.match(run(validator, [root, '--proposal', file, '--json']).stdout, /SE-EV1/);
+});
+
+test('weak evidence produces no eval plan', (t) => {
+  const directory = scratch(t);
+  const proposal = propose(noCandidateFixture, directory, ['--agent', 'generic']);
+  assert.equal(proposal.eval_plan, null);
+});
+
+test('usage report ranks Skill tool calls above reads and mentions and reports its lower-bound basis', (t) => {
+  const directory = scratch(t);
+  const usage = path.join(root, 'scripts', 'skill-usage-report.js');
+  const skills = path.join(directory, 'skills');
+  for (const name of ['alpha-skill', 'beta-skill', 'unused-skill']) {
+    fs.mkdirSync(path.join(skills, name), { recursive: true });
+    fs.writeFileSync(path.join(skills, name, 'SKILL.md'), '---\nname: x\n---\n');
+  }
+  const result = run(usage, ['--session-dir', path.join(__dirname, 'fixtures'), '--skills-root', skills, '--since', '2026-10-01', '--format', 'json']);
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  const by = Object.fromEntries(report.skills.map((row) => [row.skill, row]));
+  assert.equal(by['alpha-skill'].skill_tool, 2);
+  assert.equal(by['beta-skill'].skill_md_read, 1);
+  assert.equal(by['gamma-skill'].path_mention, 1);
+  assert.equal(by['old-skill'], undefined, '--since drops older sessions');
+  assert.equal(by['delta-skill'], undefined, 'prose is not a tool call');
+  assert.deepEqual(report.installed_never_observed, ['unused-skill']);
+  assert.match(report.basis, /Lower bound/);
+  assert.equal(report.coverage.parse_errors, 1);
+});
+
+test('proposal for a link view resolves the canonical owner', (t) => {
+  const directory = scratch(t);
+  const owner = path.join(directory, 'owner', 'sample-skill');
+  fs.mkdirSync(owner, { recursive: true });
+  const view = path.join(directory, 'view-sample-skill');
+  try {
+    fs.symlinkSync(owner, view, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch {
+    t.skip('links unavailable');
+    return;
+  }
+  const proposal = propose(proposalFixture, directory, ['--agent', 'generic', '--target-skill-dir', view]);
+  assert.equal(proposal.target.is_link_view, true);
+  assert.notEqual(proposal.target.canonical_dir, proposal.target.skill_dir);
+  assert.ok(proposal.validation.required.some((line) => /canonical_dir/.test(line)));
 });

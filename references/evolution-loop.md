@@ -105,6 +105,8 @@ Treat human corrections as the highest-signal training data:
 4. Add an eval/check that would catch the same miss.
 5. Report the before/after behavior in the proposal.
 
+Every proposal carries an `eval_plan` that does step 4 as a draft: one held-out case per user correction, plus a summary of which case types the target's suite still lacks. Add a reviewed draft before editing the Skill, so the miss is reproducible; after the edit, run the suite and keep the recorded outcome with the revision it covered. A suite that is never run gives the next revision nothing to compare against.
+
 ## Comparison Before Recommendation
 
 For a material proposal, define a small comparison before expanding instructions:

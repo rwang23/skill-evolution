@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 - 2026-10-31
+
+- Proposal schema 3: every proposal carries an `eval_plan` with draft held-out cases from user corrections and a summary of the target suite's missing case types; the validator enforces it (`SE-EV1`) for schema 3 only.
+- Added `scripts/skill-usage-report.js`, which counts Skill tool calls, `SKILL.md` reads, and path mentions across explicit session directories and lists installed Skills never observed, as a labelled lower bound.
+- Proposals now record `target.canonical_dir` and `target.is_link_view`, so an edit lands at the canonical owner rather than a link view or copy.
+- Expanded the self-eval suite to 14 specified cases covering usage evidence, eval plans, near-neighbor audits, and pressure.
+
 ## 2026-10-16
 
 - Redesigned the README animation and workflow still with a light editorial palette, clearer typography, and more whitespace.

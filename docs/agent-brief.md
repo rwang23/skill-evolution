@@ -38,7 +38,8 @@ python -m unittest discover -s tests -p "test_*.py" -v
 ## Tooling map
 
 - Transcript normalizer: `scripts/extract-session.js`
-- Proposal generator: `scripts/propose-skill-evolution.js`
+- Proposal generator: `scripts/propose-skill-evolution.js` (schema 3, including `eval_plan`)
+- Usage evidence: `scripts/skill-usage-report.js`
 - Package and proposal validator: `scripts/validate-skill-package.js`
 - Behavior tests: `tests/skill-evolution.test.js`
 - Route fixtures: `evals/evals.json`

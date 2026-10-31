@@ -13,10 +13,10 @@ Invoke with `/skill-evolution` in Claude Code or `$skill-evolution` in Codex. Sc
 
 1. Confirm the request is about a reusable Skill or agent-harness behavior. For a one-off project correction, return `no candidate` and keep the issue local.
 2. Read [the evolution quality contract](references/skill-quality-contract.md). Define the suspected failure, the target surface, the evidence threshold, and the approval boundary before proposing anything.
-3. Collect the smallest decisive evidence set from explicitly selected transcripts. Prefer exact user corrections, repeated failures, failed verification, routing misses, and before/after outcomes. Use summaries as pointers; verify the source before calling an incident observed. Keep observed facts separate from inference.
+3. Collect the smallest decisive evidence set from explicitly selected transcripts. Prefer exact user corrections, repeated failures, failed verification, routing misses, and before/after outcomes. Use summaries as pointers; verify the source before calling an incident observed. Keep observed facts separate from inference. When the question is whether a Skill fires at all, run `node "<skill-root>/scripts/skill-usage-report.js" --session-dir "<dir>" --skills-root "<skills-root>"` and treat its counts as a lower bound.
 4. When a transcript needs normalization, run `node "<skill-root>/scripts/extract-session.js" "<session-file>" --format json --include-tool-output`. Use `--agent claude` for Claude Code exports and `--query <text>` for a focused extract.
 5. Inspect extraction coverage and source lines. Exclude injected instructions and mirrored events from feedback counts. Test generalization: a candidate must explain a repeatable behavior, name the smallest durable target, and define a regression check. If the evidence supports only one transient case, return `no candidate`.
-6. Generate a review artifact with `node "<skill-root>/scripts/propose-skill-evolution.js" "<session-file>" --target-skill-dir "<target>" --output-dir "<review-dir>"`. A generic JSON audit may be supplied with `--baseline-report <file>`; it is optional.
+6. Generate a review artifact with `node "<skill-root>/scripts/propose-skill-evolution.js" "<session-file>" --target-skill-dir "<target>" --output-dir "<review-dir>"`. A generic JSON audit may be supplied with `--baseline-report <file>`; it is optional. The proposal records `target.canonical_dir`; when `target.is_link_view` is true, the target was reached through a link and any approved edit belongs at the canonical directory. A physical copy that differs from its owner is a deployment defect to hand to the sync owner, not a content lesson.
 7. Validate both this package and the proposal with `node "<skill-root>/scripts/validate-skill-package.js" "<skill-root>" --proposal "<proposal.json>"`.
 8. Return the proposal or `no candidate`. Name the evidence, target surface, alternatives considered, smallest recommended change, regression check, maturity impact, risk, and missing evidence.
 
@@ -25,7 +25,7 @@ Invoke with `/skill-evolution` in Claude Code or `$skill-evolution` in Codex. Sc
 Return exactly one disposition:
 
 - `no candidate`: state why the evidence does not justify a reusable change and what additional observation would change that decision.
-- `proposal`: provide the generated artifact path plus a concise evidence-to-change summary. Keep `approval.required` true and `apply_plan` null.
+- `proposal`: provide the generated artifact path plus a concise evidence-to-change summary. Keep `approval.required` true and `apply_plan` null. Every `proposal` includes an `eval_plan`: draft held-out eval cases for the user corrections and a summary of the target suite's missing case types. Drafts are placeholders; restate the prompt and expected output from source context before anything is added to a suite.
 
 The proposal must compare at least two options when a change is warranted: the smallest viable candidate and either a safer alternative or an observe-more-evidence alternative. It may recommend one option, but it must not apply it.
 
@@ -34,6 +34,7 @@ The proposal must compare at least two options when a change is warranted: the s
 - Treat direct user correction and reproduced failure as stronger than keyword counts or model inference.
 - Generated signals are unreviewed heuristics. Keyword mentions, assistant claims, and isolated tool errors do not establish recurrence; corroborate user feedback in context. Two records or two signal types from one incident are not two independent observations.
 - Extraction requires an explicit file or directory, rejects inputs above 32 MiB, and reports parsing, filtering, truncation, and mirror removal. Query-filtered output is a partial view; the extractor itself is not a redaction tool.
+- Usage counts come only from tool-call inputs. A Skill read through a Skill tool call outranks a `SKILL.md` Read, which outranks a path mention in a listing or edit. Zero observed use does not prove a Skill was ignored, and a short session may never need one; propose routing changes only when the same prompt class repeatedly missed its Skill.
 - Preserve exact excerpts only when needed; redact credentials and user-specific absolute paths.
 - Do not convert a single exception, run date, project path, account, or transient count into a general Skill rule.
 - Pair every intended change with the evidence it addresses and a check that would catch the same failure again.
@@ -67,5 +68,6 @@ Report `no maturity impact`, `retain <mode>`, `propose promotion to <mode>`, `ob
 - [Automation playbook](references/automation-playbook.md): proposal-only hook and scheduled-review patterns.
 - [Harness patterns](references/harness-patterns.md): trace, eval, loop, and approval patterns.
 - `scripts/extract-session.js`: normalize transcript evidence.
+- `scripts/skill-usage-report.js`: count Skill tool calls, `SKILL.md` reads, and path mentions per Skill across explicit session directories; lists installed Skills never observed.
 - `scripts/propose-skill-evolution.js`: write proposal-only JSON and Markdown artifacts.
 - `scripts/validate-skill-package.js`: validate this standalone package and proposal schema.
