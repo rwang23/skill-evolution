@@ -107,6 +107,21 @@ Treat human corrections as the highest-signal training data:
 
 Every proposal carries an `eval_plan` that does step 4 as a draft: one held-out case per user correction, plus a summary of which case types the target's suite still lacks. Add a reviewed draft before editing the Skill, so the miss is reproducible; after the edit, run the suite and keep the recorded outcome with the revision it covered. A suite that is never run gives the next revision nothing to compare against.
 
+## Constraint Ladder
+
+A lesson can live in four places, from strongest to weakest:
+
+1. **Structure**: the failure is impossible, for example a layout, dependency boundary, or schema that cannot express it.
+2. **Deterministic check**: a validator, lint rule, test, or CI step fails when the failure happens.
+3. **Eval case**: the failure is reproduced and graded, so a later revision cannot quietly reintroduce it.
+4. **Instruction**: prose in `SKILL.md` or a reference. Agents forget prose under load.
+
+A correction a human has to repeat is a lesson stuck on the weakest rung. When the invariant is mechanically checkable, move it down to a check and leave only a pointer in the prose. When it is a judgment call, make it an eval case. Recurring corrections therefore produce a `hard-check` candidate beside the regression-first option.
+
+## Reading Tool Traces
+
+User corrections are the strongest signal, but the agent's tool calls show failure modes users do not always name: editing a file it never read, naming a root cause before reading or searching anything, or declaring a fix complete without running a check after the last edit. The proposer reports these as `trace-signal` evidence. They tell a reviewer where to look; they do not establish recurrence and do not make a proposal on their own.
+
 ## Comparison Before Recommendation
 
 For a material proposal, define a small comparison before expanding instructions:

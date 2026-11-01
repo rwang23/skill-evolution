@@ -123,6 +123,58 @@ function matchesAny(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+// Heuristic failure modes read from the agent's own tool calls. They point a reviewer at a session;
+// they never count as user corrections and never make evidence strong on their own.
+const readTool = /^\[(?:Read|Grep|Glob|LS|NotebookRead|View|view_file|read_file|search|grep)\]/i;
+const editTool = /^\[(?:Edit|MultiEdit|NotebookEdit|str_replace_editor|edit_file)\]/i;
+const shellTool = /^\[(?:Bash|shell|exec_command|local_shell|PowerShell|run_terminal_cmd|container\.exec)\]/i;
+const shellRead = /\b(?:cat|rg|grep|sed -n|head|tail|less|Get-Content|Select-String|findstr|type)\b/;
+const verifyCommand = /\b(?:test|tests|pytest|jest|vitest|unittest|mocha|lint|eslint|ruff|tsc|typecheck|build|verify|validate|check)\b/i;
+const completionClaim = /\b(?:done|fixed|resolved|complete[ds]?|works now|all (?:tests )?pass(?:ing)?)\b|已完成|已修复|修好了|全部通过/i;
+const rootCauseClaim = /\broot cause\b|\bthe (?:real )?cause is\b|根因|根本原因/i;
+
+function toolPaths(text) {
+  const paths = new Set();
+  for (const match of text.matchAll(/"(?:file_path|path|notebook_path)"\s*:\s*"([^"]+)"/g)) paths.add(path.basename(match[1].replace(/\\\\/g, '/')));
+  for (const match of text.matchAll(/\*\*\* (?:Update|Delete) File: ([^\n\\]+)/g)) paths.add(path.basename(match[1].trim()));
+  return [...paths].filter(Boolean);
+}
+
+function detectTraceSignals(messages) {
+  const signals = [];
+  const readNames = new Set();
+  let investigated = false;
+  let lastEditIndex = -1;
+  let lastVerifyIndex = -1;
+  messages.forEach((message, index) => {
+    const text = String(message.content || '');
+    if (message.role === 'tool_call') {
+      const isShell = shellTool.test(text);
+      const isRead = readTool.test(text) || (isShell && shellRead.test(text));
+      const isPatch = /apply_patch/.test(text) && /\*\*\* (?:Update|Delete) File:/.test(text);
+      if (isRead) {
+        investigated = true;
+        for (const name of toolPaths(text)) readNames.add(name);
+        for (const match of text.matchAll(/[\w.-]+\.[A-Za-z0-9]{1,6}/g)) readNames.add(match[0]);
+      }
+      if (editTool.test(text) || isPatch) {
+        lastEditIndex = index;
+        const unread = toolPaths(text).filter((name) => !readNames.has(name));
+        if (unread.length) signals.push({ signal: 'edit-without-read', message, detail: `edited ${unread.join(', ')} without reading it earlier in the session` });
+      }
+      if (isShell && verifyCommand.test(text)) lastVerifyIndex = index;
+    } else if (message.role === 'assistant' && !investigated && rootCauseClaim.test(text)) {
+      signals.push({ signal: 'claim-before-investigation', message, detail: 'named a root cause before any read or search tool call' });
+      investigated = true;
+    }
+  });
+  const finalAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
+  if (finalAssistant && completionClaim.test(String(finalAssistant.content || '')) && lastEditIndex > lastVerifyIndex) {
+    signals.push({ signal: 'unverified-completion', message: finalAssistant, detail: 'claimed completion with no verification command after the last edit' });
+  }
+  return signals;
+}
+
 function analyze(messages) {
   const patterns = {
     correction: [/\byou (?:missed|skipped|forgot|used the wrong)\b/i, /\b(?:routing|skill|workflow|output) (?:was|is) wrong\b/i, /\byou should have\b/i, /not what i asked/i, /(?:你|刚才|上次|这次|又).{0,40}(?:不对|错了|选错|遗漏|漏掉)/, /不是.{0,20}(?:我让|我要|我说|要求)/],
@@ -137,6 +189,7 @@ function analyze(messages) {
     errorSignals: 0,
     routingSignals: 0,
     workflowSignals: 0,
+    traceSignals: 0,
   };
   const evidence = [];
   const seen = new Set();
@@ -184,8 +237,14 @@ function analyze(messages) {
     }
   }
 
+  for (const item of detectTraceSignals(messages)) {
+    counts.traceSignals += 1;
+    capture('trace-signal', { ...item.message, content: `${item.signal}: ${item.detail}. ${String(item.message.content || '').slice(0, 300)}` });
+  }
+
   let score = 0;
   if (counts.toolCalls >= minToolCalls) score += 1;
+  score += Math.min(counts.traceSignals, 3);
   score += Math.min(counts.userCorrections * 4, 12);
   score += Math.min(counts.errorSignals * 2, 6);
   const strongEvidence = counts.userCorrections > 0 &&
@@ -195,6 +254,7 @@ function analyze(messages) {
   if (counts.errorSignals) triggers.push(`error or dead-end signals: ${counts.errorSignals}`);
   if (repeatedCorrection) triggers.push('User feedback describes recurrence; independent sessions still require review.');
   if (counts.toolCalls >= minToolCalls) triggers.push(`complex task: ${counts.toolCalls} tool calls`);
+  if (counts.traceSignals) triggers.push(`tool-trace failure signals (heuristic, supporting only): ${counts.traceSignals}`);
   const selectedEvidence = evidence
     .sort((left, right) => Number(right.type === 'user-correction') - Number(left.type === 'user-correction'))
     .slice(0, 16)
@@ -204,6 +264,7 @@ function analyze(messages) {
     threshold: minSignalScore,
     strongEvidence,
     decision: score >= minSignalScore && strongEvidence ? 'proposal' : 'no-candidate',
+    recurrent: repeatedCorrection || counts.userCorrections >= 2,
     triggers,
     counts,
     evidence: selectedEvidence,
@@ -277,6 +338,13 @@ function buildEvalPlan(analysis, transcript) {
       routing: { case_type: 'held-out', should_trigger: names, should_not_trigger: [] },
       order: index + 1,
     })),
+    run_protocol: [
+      'Write the grading expectations before running the case.',
+      'Run each case in its own scratch workspace, and do not tell the executing agent it is being evaluated.',
+      'Grade with a judge that did not execute the case.',
+      'Run at least two models or clients for a portable Skill and report flaky cases separately from failures.',
+      'Re-run the whole suite after every Skill edit and compare it with the run recorded for the previous revision; keep held-out cases out of tuning.',
+    ],
     guidance: [
       'Add each reviewed draft as a held-out case before changing the Skill, so the miss is reproducible.',
       'Keep a case only if the correction describes behavior that should recur across sessions; drop one-off project preferences.',
@@ -332,10 +400,26 @@ function targetSurface(analysis) {
 function buildCandidates(analysis) {
   const evidenceIds = analysis.evidence.map((item) => item.id);
   const surface = targetSurface(analysis);
+  const hardCheck = analysis.recurrent
+    ? [{
+      id: 'hard-check',
+      label: 'Turn the repeated correction into a failing check',
+      constraint_layer: 'deterministic-check',
+      target_surface: 'validator, lint rule, test, or structural boundary owned by the target',
+      intended_behavior: 'Encode the invariant the user keeps restating so a violation fails without anyone having to remember the rule.',
+      rationale: 'A correction that recurs is a soft constraint that is being forgotten; a deterministic check removes the dependence on recall.',
+      evidence_ids: evidenceIds,
+      validation: ['Show the new check failing on the recorded miss before any fix.', 'Show it passing afterwards; keep any SKILL.md sentence only as a pointer to the check.'],
+      risk: 'medium',
+      tradeoff: 'Works only when the invariant is mechanically checkable; judgment calls stay as eval cases.',
+    }]
+    : [];
   return [
+    ...hardCheck,
     {
       id: 'minimal-contract',
       label: 'Smallest durable contract change',
+      constraint_layer: 'instruction',
       target_surface: surface,
       intended_behavior: 'Prevent or shorten the evidenced failure with one bounded instruction or deterministic check.',
       rationale: 'Changes the narrowest reusable surface that directly addresses the observed behavior.',
@@ -347,6 +431,7 @@ function buildCandidates(analysis) {
     {
       id: 'regression-first',
       label: 'Add evidence without broad behavior change',
+      constraint_layer: 'eval',
       target_surface: 'eval or replay fixture',
       intended_behavior: 'Make the observed miss reproducible before changing the active workflow.',
       rationale: 'Improves evidence quality and reduces the risk of over-generalizing a single session.',
@@ -358,6 +443,7 @@ function buildCandidates(analysis) {
     {
       id: 'observe-more',
       label: 'Collect another independent observation',
+      constraint_layer: null,
       target_surface: null,
       intended_behavior: 'Defer package changes until a second observation confirms the same reusable lesson.',
       rationale: 'Use when the current evidence is specific, ambiguous, or weakly attributed.',
@@ -466,6 +552,7 @@ function markdownFor(proposal) {
       `### ${candidate.id}: ${candidate.label}`,
       '',
       `Target: ${candidate.target_surface || 'none'}`,
+      `Constraint layer: ${candidate.constraint_layer || 'none'}`,
       '',
       candidate.rationale,
       '',

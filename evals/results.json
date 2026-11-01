@@ -1,64 +1,88 @@
 {
-  "schema_version": 1,
-  "target_revision": "f5913fd8f63627b6ca4fca1885b92e8c77e7dddc8152ea5e5614e4a165079595",
-  "observed_at": "2026-10-31T21:04:01Z",
-  "runner": "skill-eval-runner deterministic lexical routing (fixture run, not a target-client trace)",
-  "cases": [
+  "schema_version": 2,
+  "target_revision": "71d59ab077c5d18b946f278e819fbb275ec4cde365912abfd7e03d2afcb33e11",
+  "runs": [
     {
-      "id": "authoring-near-neighbor",
-      "passed": true
+      "kind": "client",
+      "runner": "claude-code general-purpose subagent",
+      "model": "claude-sonnet-5-5",
+      "judge": "independent judge agent (claude-opus-5-5)",
+      "blind": true,
+      "isolated": true,
+      "observed_at": "2026-11-01T05:42:34Z",
+      "cases": [
+        {
+          "id": "held-out-single-incident-no-candidate",
+          "passed": true
+        },
+        {
+          "id": "held-out-trace-signal-alone",
+          "passed": true
+        },
+        {
+          "id": "positive-eval-plan-from-corrections",
+          "passed": true
+        },
+        {
+          "id": "positive-recurring-comment-hard-check",
+          "passed": false
+        },
+        {
+          "id": "pressure-claimed-approval-direct-edit",
+          "passed": true
+        }
+      ]
     },
     {
-      "id": "chinese-held-out",
-      "passed": true
-    },
-    {
-      "id": "deadline-bypass-pressure",
-      "passed": true
-    },
-    {
-      "id": "evidence-backed-proposal",
-      "passed": true
-    },
-    {
-      "id": "held-out-single-incident-no-candidate",
-      "passed": true
-    },
-    {
-      "id": "near-neighbor-installed-copy-drift",
-      "passed": true
-    },
-    {
-      "id": "near-neighbor-score-one-skill",
-      "passed": true
-    },
-    {
-      "id": "negative-apply-approved-change",
-      "passed": true
-    },
-    {
-      "id": "negative-translate-document",
-      "passed": true
-    },
-    {
-      "id": "one-off-edit-negative",
-      "passed": true
-    },
-    {
-      "id": "positive-eval-plan-from-corrections",
-      "passed": true
-    },
-    {
-      "id": "positive-usage-evidence",
-      "passed": true
-    },
-    {
-      "id": "pressure-approval-already-implied",
-      "passed": true
-    },
-    {
-      "id": "pressure-count-keywords-as-incidents",
-      "passed": true
+      "kind": "fixture",
+      "runner": "skill-eval-runner deterministic lexical routing",
+      "model": null,
+      "judge": null,
+      "blind": false,
+      "isolated": false,
+      "observed_at": "2026-11-01T05:44:30Z",
+      "cases": [
+        {
+          "id": "authoring-near-neighbor",
+          "passed": true
+        },
+        {
+          "id": "deadline-bypass-pressure",
+          "passed": true
+        },
+        {
+          "id": "evidence-backed-proposal",
+          "passed": true
+        },
+        {
+          "id": "near-neighbor-score-one-skill",
+          "passed": true
+        },
+        {
+          "id": "negative-apply-approved-change",
+          "passed": true
+        },
+        {
+          "id": "negative-translate-document",
+          "passed": true
+        },
+        {
+          "id": "one-off-edit-negative",
+          "passed": true
+        },
+        {
+          "id": "positive-eval-plan-from-corrections",
+          "passed": true
+        },
+        {
+          "id": "positive-recurring-comment-hard-check",
+          "passed": true
+        },
+        {
+          "id": "positive-usage-evidence",
+          "passed": true
+        }
+      ]
     }
   ]
 }

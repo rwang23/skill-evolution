@@ -400,3 +400,53 @@ test('proposal for a link view resolves the canonical owner', (t) => {
   assert.notEqual(proposal.target.canonical_dir, proposal.target.skill_dir);
   assert.ok(proposal.validation.required.some((line) => /canonical_dir/.test(line)));
 });
+
+test('tool traces surface heuristic failure modes without making evidence strong', (t) => {
+  const directory = scratch(t);
+  const file = transcriptFile(directory, [
+    { type: 'user', timestamp: '2026-10-02T10:00:00Z', message: { role: 'user', content: 'The export button crashes. Please fix it.' } },
+    { type: 'assistant', timestamp: '2026-10-02T10:00:01Z', message: { role: 'assistant', content: [{ type: 'text', text: 'The root cause is a null handler in export.js.' }] } },
+    { type: 'assistant', timestamp: '2026-10-02T10:00:02Z', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'e1', name: 'Edit', input: { file_path: '/repo/src/export.js', old_string: 'a', new_string: 'b' } }] } },
+    { type: 'user', timestamp: '2026-10-02T10:00:03Z', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'e1', content: 'ok' }] } },
+    { type: 'assistant', timestamp: '2026-10-02T10:00:04Z', message: { role: 'assistant', content: [{ type: 'text', text: 'Done, the crash is fixed.' }] } },
+  ]);
+  const proposal = propose(file, directory, ['--agent', 'claude']);
+  const signals = proposal.evidence.filter((item) => item.type === 'trace-signal').map((item) => item.excerpt.split(':')[0]);
+  assert.deepEqual(signals.sort(), ['claim-before-investigation', 'edit-without-read', 'unverified-completion']);
+  assert.equal(proposal.signal_assessment.counts.traceSignals, 3);
+  assert.equal(proposal.signal_assessment.strong_evidence, false);
+  assert.equal(proposal.status, 'no-candidate');
+});
+
+test('verified edits after a read do not raise trace signals', (t) => {
+  const directory = scratch(t);
+  const file = transcriptFile(directory, [
+    { type: 'user', timestamp: '2026-10-02T11:00:00Z', message: { role: 'user', content: 'Fix the export crash.' } },
+    { type: 'assistant', timestamp: '2026-10-02T11:00:01Z', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'r1', name: 'Read', input: { file_path: '/repo/src/export.js' } }] } },
+    { type: 'assistant', timestamp: '2026-10-02T11:00:02Z', message: { role: 'assistant', content: [{ type: 'text', text: 'The root cause is a null handler.' }, { type: 'tool_use', id: 'e1', name: 'Edit', input: { file_path: '/repo/src/export.js', old_string: 'a', new_string: 'b' } }] } },
+    { type: 'assistant', timestamp: '2026-10-02T11:00:03Z', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'b1', name: 'Bash', input: { command: 'npm test' } }] } },
+    { type: 'assistant', timestamp: '2026-10-02T11:00:04Z', message: { role: 'assistant', content: [{ type: 'text', text: 'Fixed; tests pass.' }] } },
+  ]);
+  const proposal = propose(file, directory, ['--agent', 'claude']);
+  assert.equal(proposal.signal_assessment.counts.traceSignals, 0);
+});
+
+test('a recurring correction adds a hard-check candidate on the deterministic-check layer', (t) => {
+  const directory = scratch(t);
+  const proposal = propose(proposalFixture, directory, ['--agent', 'generic']);
+  const hard = proposal.candidates.find((item) => item.id === 'hard-check');
+  assert.ok(hard, 'hard-check candidate expected for recurring corrections');
+  assert.equal(hard.constraint_layer, 'deterministic-check');
+  assert.equal(proposal.recommended_candidate, 'regression-first');
+  assert.ok(proposal.candidates.every((item) => 'constraint_layer' in item));
+  assert.ok(proposal.eval_plan.run_protocol.some((line) => /judge that did not execute/.test(line)));
+});
+
+test('validator rejects an unknown constraint layer', (t) => {
+  const directory = scratch(t);
+  const proposal = propose(proposalFixture, directory, ['--agent', 'generic']);
+  proposal.candidates[0].constraint_layer = 'vibes';
+  const file = path.join(directory, 'layer.json');
+  fs.writeFileSync(file, JSON.stringify(proposal));
+  assert.match(run(validator, [root, '--proposal', file, '--json']).stdout, /SE-C2/);
+});

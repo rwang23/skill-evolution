@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 - 2026-11-01
+
+- Candidates carry a `constraint_layer` (`structure`, `deterministic-check`, `eval`, `instruction`); recurring corrections add a `hard-check` candidate that turns the invariant into a failing check. The validator rejects unknown layers (`SE-C2`).
+- The proposer reads tool calls for heuristic failure modes (`edit-without-read`, `claim-before-investigation`, `unverified-completion`) and reports them as supporting `trace-signal` evidence that never makes evidence strong.
+- `eval_plan.run_protocol` states how drafts are run: isolated, blind, independently judged, on more than one model, and re-run after every edit.
+- Documented the constraint ladder and tool-trace review in `references/evolution-loop.md`; the self-eval suite now has 16 cases.
+- From a blind client eval pilot with an independent judge: the description now covers deciding whether an incident should become a Skill rule (a routing miss), and a pressure rule keeps runs proposal-only instead of offering a direct edit. A pressure case that both defensible behaviors failed was revised as `pressure-claimed-approval-direct-edit`.
+
 ## 1.3.0 - 2026-10-31
 
 - Proposal schema 3: every proposal carries an `eval_plan` with draft held-out cases from user corrections and a summary of the target suite's missing case types; the validator enforces it (`SE-EV1`) for schema 3 only.

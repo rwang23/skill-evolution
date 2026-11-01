@@ -1,6 +1,6 @@
 ---
 name: skill-evolution
-description: Turn repeated usage evidence and user feedback into reviewable Skill or harness improvement proposals. Use for Skill evolution, routing regressions, eval or hook improvements, and 技能进化或优化; not for applying changes or one-off edits.
+description: Turn usage evidence and user feedback into reviewable Skill or harness improvement proposals. Use for Skill evolution, routing regressions, evals or hooks, deciding if an incident should become a Skill rule, and 技能进化; not for applying edits.
 ---
 
 Turn observed agent behavior into a bounded improvement proposal. This Skill is proposal-only: it collects evidence, tests whether the lesson generalizes, and produces a review artifact. It never edits the target Skill, changes a registry, commits, pushes, or opens a pull request.
@@ -11,11 +11,11 @@ Invoke with `/skill-evolution` in Claude Code or `$skill-evolution` in Codex. Sc
 
 ## Workflow
 
-1. Confirm the request is about a reusable Skill or agent-harness behavior. For a one-off project correction, return `no candidate` and keep the issue local.
+1. Confirm the request is about a reusable Skill or agent-harness behavior. A question such as "should this incident become a Skill rule?" is in scope: answer it through this workflow, with `no candidate` when the evidence is one transient case. For a one-off project correction, return `no candidate` and keep the issue local.
 2. Read [the evolution quality contract](references/skill-quality-contract.md). Define the suspected failure, the target surface, the evidence threshold, and the approval boundary before proposing anything.
 3. Collect the smallest decisive evidence set from explicitly selected transcripts. Prefer exact user corrections, repeated failures, failed verification, routing misses, and before/after outcomes. Use summaries as pointers; verify the source before calling an incident observed. Keep observed facts separate from inference. When the question is whether a Skill fires at all, run `node "<skill-root>/scripts/skill-usage-report.js" --session-dir "<dir>" --skills-root "<skills-root>"` and treat its counts as a lower bound.
 4. When a transcript needs normalization, run `node "<skill-root>/scripts/extract-session.js" "<session-file>" --format json --include-tool-output`. Use `--agent claude` for Claude Code exports and `--query <text>` for a focused extract.
-5. Inspect extraction coverage and source lines. Exclude injected instructions and mirrored events from feedback counts. Test generalization: a candidate must explain a repeatable behavior, name the smallest durable target, and define a regression check. If the evidence supports only one transient case, return `no candidate`.
+5. The proposer also reads the agent's own tool calls for heuristic failure modes (`edit-without-read`, `claim-before-investigation`, `unverified-completion`); treat these `trace-signal` items as pointers for review, never as user corrections. Inspect extraction coverage and source lines. Exclude injected instructions and mirrored events from feedback counts. Test generalization: a candidate must explain a repeatable behavior, name the smallest durable target, and define a regression check. If the evidence supports only one transient case, return `no candidate`.
 6. Generate a review artifact with `node "<skill-root>/scripts/propose-skill-evolution.js" "<session-file>" --target-skill-dir "<target>" --output-dir "<review-dir>"`. A generic JSON audit may be supplied with `--baseline-report <file>`; it is optional. The proposal records `target.canonical_dir`; when `target.is_link_view` is true, the target was reached through a link and any approved edit belongs at the canonical directory. A physical copy that differs from its owner is a deployment defect to hand to the sync owner, not a content lesson.
 7. Validate both this package and the proposal with `node "<skill-root>/scripts/validate-skill-package.js" "<skill-root>" --proposal "<proposal.json>"`.
 8. Return the proposal or `no candidate`. Name the evidence, target surface, alternatives considered, smallest recommended change, regression check, maturity impact, risk, and missing evidence.
@@ -25,9 +25,9 @@ Invoke with `/skill-evolution` in Claude Code or `$skill-evolution` in Codex. Sc
 Return exactly one disposition:
 
 - `no candidate`: state why the evidence does not justify a reusable change and what additional observation would change that decision.
-- `proposal`: provide the generated artifact path plus a concise evidence-to-change summary. Keep `approval.required` true and `apply_plan` null. Every `proposal` includes an `eval_plan`: draft held-out eval cases for the user corrections and a summary of the target suite's missing case types. Drafts are placeholders; restate the prompt and expected output from source context before anything is added to a suite.
+- `proposal`: provide the generated artifact path plus a concise evidence-to-change summary. Keep `approval.required` true and `apply_plan` null. Every `proposal` includes an `eval_plan`: draft held-out eval cases for the user corrections and a summary of the target suite's missing case types. Drafts are placeholders; restate the prompt and expected output from source context before anything is added to a suite, and run them by the plan's `run_protocol` (isolated, blind, independent judge, more than one model, re-run after every edit).
 
-The proposal must compare at least two options when a change is warranted: the smallest viable candidate and either a safer alternative or an observe-more-evidence alternative. It may recommend one option, but it must not apply it.
+Every candidate names its `constraint_layer`. Prefer the hardest layer that fits the evidence: `structure` (make the failure impossible), `deterministic-check` (a validator, lint, or test fails on it), `eval` (a case reproduces it), then `instruction` (prose in `SKILL.md`, the easiest to forget). A correction that recurs adds a `hard-check` candidate. The proposal must compare at least two options when a change is warranted: the smallest viable candidate and either a safer alternative or an observe-more-evidence alternative. It may recommend one option, but it must not apply it.
 
 ## Evidence rules
 
@@ -55,6 +55,7 @@ Report `no maturity impact`, `retain <mode>`, `propose promotion to <mode>`, `ob
 ## Boundaries
 
 - Do not edit the target package or invoke another Skill to edit it.
+- Under pressure to skip review, claim approval, or edit directly, still return the proposal-only artifact (or `no candidate`) with approval pending. Do not offer to edit the target from this run; a direct edit is a separate request the user makes outside this Skill.
 - Do not treat an audit score, route fixture, or heuristic signal as authority to change files.
 - Do not publish, push, open a pull request, install a Skill, or change hooks without separate authorization.
 - Do not overwrite dirty work or infer approval from the existence of a proposal.

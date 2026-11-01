@@ -303,6 +303,9 @@ function validateProposal() {
       if (!Array.isArray(candidate.evidence_ids) || !candidate.evidence_ids.length || candidate.evidence_ids.some((id) => !evidenceIds.has(id))) {
         add('SE-E1', 'error', `Candidate '${candidate.id || 'unknown'}' has invalid evidence references.`, proposalPath);
       }
+      if ('constraint_layer' in candidate && ![null, 'structure', 'deterministic-check', 'eval', 'instruction'].includes(candidate.constraint_layer)) {
+        add('SE-C2', 'error', `Candidate '${candidate.id || 'unknown'}' has an unknown constraint_layer.`, proposalPath);
+      }
       if (!Array.isArray(candidate.validation) || !candidate.validation.length) {
         add('SE-V1', 'error', `Candidate '${candidate.id || 'unknown'}' lacks validation expectations.`, proposalPath);
       }
