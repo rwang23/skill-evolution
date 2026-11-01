@@ -2,6 +2,8 @@
 
 ## 1.5.0 - 2026-11-01
 
+- Agent detection reads transcript content before path hints, and path hints only match the agents' session stores; a generic transcript stored under any `.codex` folder (for example this Skill's own fixtures once installed in `~/.codex/skills`) is no longer parsed as a Codex rollout.
+- The private-path check inspects every match, so an allowed placeholder such as `C:\Users\<person>` no longer hides a real user path later in the same artifact.
 - The analyzer now recognises corrections phrased as "you put/wrote/added ... again" and rule restatements after "again"; a five-correction session that scored 0 now produces a proposal with a hard-check candidate.
 - The description again says "whether an incident should become a Skill rule" (dropping "Skill" coincided with a routing regression), and all artifacts must stay inside the output directory the user named.
 - Recorded a two-model client run (Claude Sonnet 5.5 and Codex gpt-6.1-terra) graded by an independent judge; its outcomes are the baseline in `evals/history.jsonl`.
