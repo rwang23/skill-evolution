@@ -1,6 +1,6 @@
 ---
 name: skill-evolution
-description: Turn usage evidence and user feedback into reviewable Skill or harness improvement proposals. Use for Skill evolution, routing regressions, evals or hooks, deciding if an incident should become a Skill rule, and 技能进化; not for applying edits.
+description: Turn repeated corrections, reviewer feedback, and usage evidence into Skill or harness proposals. Use for Skill evolution, routing regressions, evals or hooks, whether an incident should become a Skill rule, and 技能进化; not for applying edits.
 ---
 
 Turn observed agent behavior into a bounded improvement proposal. This Skill is proposal-only: it collects evidence, tests whether the lesson generalizes, and produces a review artifact. It never edits the target Skill, changes a registry, commits, pushes, or opens a pull request.
@@ -55,6 +55,7 @@ Report `no maturity impact`, `retain <mode>`, `propose promotion to <mode>`, `ob
 ## Boundaries
 
 - Do not edit the target package or invoke another Skill to edit it.
+- Write every artifact and intermediate file, including transcript extracts and draft evals, inside the output directory the user named; keep scratch files in a temporary directory and remove them.
 - Under pressure to skip review, claim approval, or edit directly, still return the proposal-only artifact (or `no candidate`) with approval pending. Do not offer to edit the target from this run; a direct edit is a separate request the user makes outside this Skill.
 - Do not treat an audit score, route fixture, or heuristic signal as authority to change files.
 - Do not publish, push, open a pull request, install a Skill, or change hooks without separate authorization.

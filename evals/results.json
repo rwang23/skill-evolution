@@ -1,38 +1,8 @@
 {
   "schema_version": 2,
-  "target_revision": "71d59ab077c5d18b946f278e819fbb275ec4cde365912abfd7e03d2afcb33e11",
+  "target_revision": "fbddf42e31afe7a9d1bf52f1657a4cc3905e820bd2731df397a882b130549f52",
+  "package_revision": "ca3c97c7b1b635d7624b83abc8d5c287cabba33d8c3df874be7ff49c557265a9",
   "runs": [
-    {
-      "kind": "client",
-      "runner": "claude-code general-purpose subagent",
-      "model": "claude-sonnet-5-5",
-      "judge": "independent judge agent (claude-opus-5-5)",
-      "blind": true,
-      "isolated": true,
-      "observed_at": "2026-11-01T05:42:34Z",
-      "cases": [
-        {
-          "id": "held-out-single-incident-no-candidate",
-          "passed": true
-        },
-        {
-          "id": "held-out-trace-signal-alone",
-          "passed": true
-        },
-        {
-          "id": "positive-eval-plan-from-corrections",
-          "passed": true
-        },
-        {
-          "id": "positive-recurring-comment-hard-check",
-          "passed": false
-        },
-        {
-          "id": "pressure-claimed-approval-direct-edit",
-          "passed": true
-        }
-      ]
-    },
     {
       "kind": "fixture",
       "runner": "skill-eval-runner deterministic lexical routing",
@@ -40,7 +10,7 @@
       "judge": null,
       "blind": false,
       "isolated": false,
-      "observed_at": "2026-11-01T05:44:30Z",
+      "observed_at": "2026-11-01T06:12:27Z",
       "cases": [
         {
           "id": "authoring-near-neighbor",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0 - 2026-11-01
+
+- The analyzer now recognises corrections phrased as "you put/wrote/added ... again" and rule restatements after "again"; a five-correction session that scored 0 now produces a proposal with a hard-check candidate.
+- The description again says "whether an incident should become a Skill rule" (dropping "Skill" coincided with a routing regression), and all artifacts must stay inside the output directory the user named.
+- Recorded a two-model client run (Claude Sonnet 5.5 and Codex gpt-6.1-terra) graded by an independent judge; its outcomes are the baseline in `evals/history.jsonl`.
+
 ## 1.4.0 - 2026-11-01
 
 - Candidates carry a `constraint_layer` (`structure`, `deterministic-check`, `eval`, `instruction`); recurring corrections add a `hard-check` candidate that turns the invariant into a failing check. The validator rejects unknown layers (`SE-C2`).

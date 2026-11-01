@@ -401,6 +401,30 @@ test('proposal for a link view resolves the canonical owner', (t) => {
   assert.ok(proposal.validation.required.some((line) => /canonical_dir/.test(line)));
 });
 
+test('a repeated "you put ... again" correction is recognised as a user correction', (t) => {
+  const directory = scratch(t);
+  const entries = [];
+  for (let i = 0; i < 3; i += 1) {
+    entries.push({ type: 'user', timestamp: `2026-10-2${i}T09:00:00Z`, message: { role: 'user', content: `Write the client report for client ${i}.` } });
+    entries.push({ type: 'assistant', timestamp: `2026-10-2${i}T09:01:00Z`, message: { role: 'assistant', content: [{ type: 'text', text: 'Report written.' }] } });
+    entries.push({ type: 'user', timestamp: `2026-10-2${i}T09:02:00Z`, message: { role: 'user', content: 'You put an absolute user path in the client report again. Reports must link evidence with relative paths only.' } });
+  }
+  const proposal = propose(transcriptFile(directory, entries), directory, ['--agent', 'claude']);
+  assert.equal(proposal.status, 'proposal');
+  assert.equal(proposal.signal_assessment.counts.userCorrections, 3);
+  assert.ok(proposal.candidates.some((item) => item.id === 'hard-check'));
+});
+
+test('plain requests that mention rules are not counted as corrections', (t) => {
+  const directory = scratch(t);
+  const file = transcriptFile(directory, [
+    { type: 'user', timestamp: '2026-10-21T09:00:00Z', message: { role: 'user', content: 'You put the summary first, which is fine. Reports must use relative links.' } },
+    { type: 'user', timestamp: '2026-10-21T09:05:00Z', message: { role: 'user', content: 'Please write it again with the same layout.' } },
+  ]);
+  const proposal = propose(file, directory, ['--agent', 'claude']);
+  assert.equal(proposal.signal_assessment.counts.userCorrections, 0);
+});
+
 test('tool traces surface heuristic failure modes without making evidence strong', (t) => {
   const directory = scratch(t);
   const file = transcriptFile(directory, [

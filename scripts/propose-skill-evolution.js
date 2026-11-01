@@ -177,7 +177,7 @@ function detectTraceSignals(messages) {
 
 function analyze(messages) {
   const patterns = {
-    correction: [/\byou (?:missed|skipped|forgot|used the wrong)\b/i, /\b(?:routing|skill|workflow|output) (?:was|is) wrong\b/i, /\byou should have\b/i, /not what i asked/i, /(?:你|刚才|上次|这次|又).{0,40}(?:不对|错了|选错|遗漏|漏掉)/, /不是.{0,20}(?:我让|我要|我说|要求)/],
+    correction: [/\byou (?:missed|skipped|forgot|used the wrong)\b/i, /\byou (?:put|wrote|added|left|kept|keep|made|broke|ignored|used|did)\b[^.?!]{0,120}\b(?:again|still)\b/i, /\b(?:again|still)\b[^.?!]{0,40}[.?!]\s*[^.?!]{0,60}\b(?:must|should) (?:not|never|only|always)\b/i, /\b(?:routing|skill|workflow|output) (?:was|is) wrong\b/i, /\byou should have\b/i, /not what i asked/i, /(?:你|刚才|上次|这次|又).{0,40}(?:不对|错了|选错|遗漏|漏掉)/, /不是.{0,20}(?:我让|我要|我说|要求)/],
     error: [/\berror\b/i, /\bfailed\b/i, /exception/i, /traceback/i, /denied/i, /失败/, /报错/, /错误/],
     routing: [/routing/i, /trigger/i, /should[_ -]?trigger/i, /wrong skill/i, /路由/, /触发/, /选错.*skill/i],
     workflow: [/repeat(?:ed|ing)?/i, /recurr/i, /workflow/i, /regression/i, /skill/i, /harness/i, /重复/, /流程/, /回归/, /技能/, /进化/],
