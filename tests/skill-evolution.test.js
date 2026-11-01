@@ -474,3 +474,28 @@ test('validator rejects an unknown constraint layer', (t) => {
   fs.writeFileSync(file, JSON.stringify(proposal));
   assert.match(run(validator, [root, '--proposal', file, '--json']).stdout, /SE-C2/);
 });
+
+test('a placeholder path does not hide a real private path later in the same artifact', (t) => {
+  const directory = scratch(t);
+  const proposal = propose(proposalFixture, directory);
+  const sep = String.fromCharCode(92);
+  proposal.evidence[0].excerpt += ` ${['C:', 'Users', '<person>', 'x'].join(sep)} then ${['C:', 'Users', 'private-person', 'notes'].join(sep)}`;
+  const file = path.join(directory, 'mixed.json');
+  fs.writeFileSync(file, JSON.stringify(proposal));
+  const result = run(validator, [root, '--proposal', file, '--json']);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stdout, /SE-P1/);
+});
+
+test('a generic transcript stored under a .codex folder is not mistaken for a Codex rollout', (t) => {
+  const directory = scratch(t);
+  const nested = path.join(directory, '.codex', 'skills', 'sample', 'tests');
+  fs.mkdirSync(nested, { recursive: true });
+  const file = path.join(nested, 'session.jsonl');
+  fs.copyFileSync(proposalFixture, file);
+  const result = run(extractor, [file, '--format', 'json']);
+  assert.equal(result.status, 0, result.stderr);
+  const transcript = JSON.parse(result.stdout);
+  assert.equal(transcript.agent, 'generic');
+  assert.ok(transcript.messages.length > 0);
+});

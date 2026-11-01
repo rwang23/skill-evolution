@@ -143,16 +143,14 @@ function validateSensitiveText(content, filePath) {
     /\bAKIA[0-9A-Z]{16}\b/,
     /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
   ];
-  const privatePaths = [/C:\\Users\\[^\\\s"`]+/i, /\/(?:Users|home)\/[^/\s"`]+/];
+  const privatePaths = [/C:\\Users\\[^\\\s"`]+/gi, /\/(?:Users|home)\/[^/\s"`]+/g];
   if (secrets.some((pattern) => pattern.test(content))) {
     add('SE-P1', 'error', 'Credential-shaped literal found; matched value suppressed.', filePath);
   }
-  for (const pattern of privatePaths) {
-    const match = content.match(pattern);
-    if (match && !/[<$%]/.test(match[0])) {
-      add('SE-P1', 'error', 'Private user path found in a shareable artifact.', filePath);
-      break;
-    }
+  // Check every match: an allowed placeholder such as C:\Users\<person> must not hide a real path after it.
+  const leaked = privatePaths.some((pattern) => [...content.matchAll(pattern)].some((match) => !/[<$%]/.test(match[0])));
+  if (leaked) {
+    add('SE-P1', 'error', 'Private user path found in a shareable artifact.', filePath);
   }
 }
 

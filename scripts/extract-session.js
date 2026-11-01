@@ -123,12 +123,8 @@ function findBySessionDir(dir, targetCwd) {
 }
 
 function inferAgent(filePath) {
-  const lower = filePath.toLowerCase();
-  if (lower.includes(`${path.sep}.codex${path.sep}`)) return 'codex';
-  if (lower.includes(`${path.sep}.claude${path.sep}`)) return 'claude';
-  if (lower.includes(`${path.sep}.pi${path.sep}`)) return 'pi';
-  if (lower.includes(`${path.sep}.hermes${path.sep}`)) return 'hermes';
-  if (lower.includes('antigravity')) return 'antigravity';
+  // Content first: a file stored anywhere under an agent's home (for example a Skill installed in
+  // ~/.codex/skills and its own fixtures) is not necessarily that agent's transcript.
   for (const line of readJsonlPrefix(filePath)) {
     try {
       const entry = JSON.parse(line);
@@ -137,6 +133,13 @@ function inferAgent(filePath) {
       // A partial record is reported during parsing, not used for detection.
     }
   }
+  // Path hints only for the agents' own session stores.
+  const lower = filePath.toLowerCase().split(path.sep).join('/');
+  if (lower.includes('/.codex/sessions/') || lower.includes('/.codex/archived_sessions/')) return 'codex';
+  if (lower.includes('/.claude/projects/')) return 'claude';
+  if (lower.includes('/.pi/') || lower.includes('/agents/pi/sessions/')) return 'pi';
+  if (lower.includes('/.hermes/')) return 'hermes';
+  if (lower.includes('antigravity')) return 'antigravity';
   return 'generic';
 }
 
